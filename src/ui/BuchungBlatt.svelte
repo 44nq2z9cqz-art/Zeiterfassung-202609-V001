@@ -5,6 +5,7 @@
   import { type Datum, datumDE, dauer, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
   import Blatt from './Blatt.svelte';
+  import StundenEingabe from './StundenEingabe.svelte';
 
   let {
     konto,
@@ -51,11 +52,11 @@
     fehler = null;
     const wert = konto === 'zeit' ? parseStunden(betrag) : parseTage(betrag);
     if (art !== 'abgleich' && betrag.trim() && wert === null) {
-      fehler = konto === 'zeit' ? 'Bitte Stunden als h:mm eingeben, z. B. 123:45.' : 'Bitte ganze oder halbe Tage eingeben, z. B. 2 oder 0,5.';
+      fehler = konto === 'zeit' ? 'Bitte Stunden und Minuten eingeben, Minuten höchstens 59.' : 'Bitte ganze oder halbe Tage eingeben, z. B. 2 oder 0,5.';
       return;
     }
     if (art === 'abgleich' && firma.trim() && firmaMin === null) {
-      fehler = 'Bitte den Saldo als h:mm eingeben, z. B. 123:45.';
+      fehler = 'Bitte beim Saldo Stunden und Minuten eingeben, Minuten höchstens 59.';
       return;
     }
     const r = baueBuchung(
@@ -97,7 +98,7 @@
           <span class="l">Saldo laut Firma</span>
           <span class="w">
             <button type="button" class="vz" onclick={() => (firmaVorzeichen = firmaVorzeichen === 1 ? -1 : 1)} aria-label="Vorzeichen wechseln">{firmaVorzeichen === 1 ? '+' : '−'}</button>
-            <input class="feld zahl" id="b-firma" inputmode="numeric" placeholder="123:45" bind:value={firma} />
+            <StundenEingabe id="b-firma" bind:wert={firma} />
           </span>
         </div>
         {#if appSaldo !== null}<div class="zeile"><span class="l leise">Saldo laut App</span><span class="w">{dauer(appSaldo, true)}</span></div>{/if}
@@ -108,7 +109,11 @@
             {#if mitVorzeichen}
               <button type="button" class="vz" onclick={() => (vorzeichen = vorzeichen === 1 ? -1 : 1)} aria-label="Vorzeichen wechseln">{vorzeichen === 1 ? '+' : '−'}</button>
             {/if}
-            <input class="feld zahl" id="b-betrag" inputmode="decimal" placeholder={konto === 'zeit' ? '12:30' : '1'} bind:value={betrag} />
+            {#if konto === 'zeit'}
+              <StundenEingabe id="b-betrag" bind:wert={betrag} />
+            {:else}
+              <input class="feld zahl" id="b-betrag" inputmode="decimal" placeholder="1" bind:value={betrag} />
+            {/if}
           </span>
         </div>
       {/if}
@@ -129,6 +134,7 @@
     {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
     <button type="button" class="knopf haupt" onclick={sichern}>{b0 ? 'Sichern' : 'Buchen'}</button>
     {#if b0}<button type="button" class="knopf neben rot" onclick={() => (loeschenFragen = true)}>Buchung löschen</button>{/if}
+    <button type="button" class="knopf neben" onclick={schliessen}>Abbrechen</button>
   {/if}
 </Blatt>
 

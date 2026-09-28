@@ -42,6 +42,11 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Kein Zoom: schnelles Tippen löst keinen Doppeltipp-Zoom aus (App-Verhalten wie bei iOS) */
+html {
+  touch-action: manipulation;
+}
+
 button {
   font: inherit;
   color: inherit;
