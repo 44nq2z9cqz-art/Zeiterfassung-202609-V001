@@ -83,6 +83,11 @@ class Speicher {
     await db.tage.bulkPut(liste.map((t) => $state.snapshot(t) as Tag));
   }
 
+  async speichereEinstellungen(e: Einstellungen) {
+    this.einstellungen = e;
+    await schreibeMeta(META.einstellungen, $state.snapshot(e));
+  }
+
   async speichereBuchung(b: Buchung) {
     this.buchungen = [...this.buchungen.filter((x) => x.id !== b.id), b];
     await db.buchungen.put($state.snapshot(b) as Buchung);

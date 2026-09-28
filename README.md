@@ -17,7 +17,7 @@ Alle fachlichen Regeln stehen in [docs/KONZEPT.md](docs/KONZEPT.md). Jede Regel 
 | M2 | Heute: Stempeln, Pausen, Pausenfenster live | ✅ |
 | M3 | Kalender und Korrekturen | ✅ |
 | M4 | Konten und Buchungen | ✅ |
-| M5 | Berichte als PDF und CSV | – |
+| M5 | Berichte als PDF und CSV | ✅ |
 | M6 | Einstellungen und Backup | – |
 | M7 | Feinschliff und Umstieg | – |
 

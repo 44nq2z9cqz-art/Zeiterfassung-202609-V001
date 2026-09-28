@@ -3,11 +3,11 @@
   import { heute as heuteBerechnen } from './core/zeit';
   import { speicher } from './lib/speicher.svelte';
   import { aktualisierung } from './lib/update.svelte';
+  import Berichte from './ui/Berichte.svelte';
   import Einstellungen from './ui/Einstellungen.svelte';
   import Heute from './ui/Heute.svelte';
   import Kalender from './ui/Kalender.svelte';
   import Konten from './ui/Konten.svelte';
-  import Platzhalter from './ui/Platzhalter.svelte';
   import { symbole } from './ui/symbole';
 
   type Reiter = 'heute' | 'kalender' | 'konten' | 'berichte';
@@ -52,7 +52,7 @@
   {:else if reiter === 'kalender'}
     <Kalender {heute} {oeffneEinstellungen} />
   {:else}
-    <Platzhalter titel="Berichte" meilenstein="M5" text="Tagesnachweis, Wochen-, Monats- und Jahresberichte als PDF und CSV kommen mit Meilenstein M5." {oeffneEinstellungen} />
+    <Berichte {heute} {oeffneEinstellungen} />
   {/if}
 </main>
 

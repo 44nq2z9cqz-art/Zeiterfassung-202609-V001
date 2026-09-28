@@ -1,0 +1,286 @@
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import { ORTE, setzeArbeitsort } from '../core/bearbeiten';
+  import { berichtTage, blaettere, csvJahr, csvKonten, csvTage, type Zeitraumart, zeitraumFuer } from '../core/berichte';
+  import type { Arbeitsort } from '../core/modell';
+  import { type Datum, datumDE, dauer, jahrVon, uhrzeit } from '../core/zeit';
+  import { speicher } from '../lib/speicher.svelte';
+  import { teileDatei } from '../lib/teilen';
+  import { symbole } from './symbole';
+  import Titel from './Titel.svelte';
+
+  let { heute, oeffneEinstellungen }: { heute: Datum; oeffneEinstellungen: () => void } = $props();
+
+  type Bericht = 'nachweis' | 'kompakt' | 'detail' | 'konten' | 'jahr';
+  const BERICHTE: Record<Zeitraumart, [Bericht, string, string][]> = {
+    tag: [['nachweis', 'Tagesnachweis', 'zum Nachtragen im Firmensystem']],
+    woche: [
+      ['kompakt', 'Wochenübersicht', 'eine Zeile pro Tag'],
+      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen']
+    ],
+    monat: [
+      ['kompakt', 'Monatsjournal kompakt', 'eine Zeile pro Tag'],
+      ['detail', 'Monatsjournal detailliert', 'alle Stempelungen Kommen/Gehen'],
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+    ],
+    jahr: [
+      ['jahr', 'Jahresübersicht', 'je Monat, mit Konten'],
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+    ],
+    zeitraum: [
+      ['kompakt', 'Übersicht kompakt', 'eine Zeile pro Tag'],
+      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen'],
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+    ]
+  };
+  const ARTEN: [Zeitraumart, string][] = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['zeitraum', 'Zeitraum']];
+
+  let art = $state<Zeitraumart>('monat');
+  let bezug = $state<Datum>(untrack(() => heute));
+  let von = $state<Datum>(untrack(() => zeitraumFuer('monat', heute).von));
+  let bis = $state<Datum>(untrack(() => heute));
+  let bericht = $state<Bericht>('kompakt');
+  let unterschrift = $state(true);
+  let meldung = $state<string | null>(null);
+  let arbeitet = $state(false);
+
+  function artWaehlen(a: Zeitraumart) {
+    art = a;
+    bericht = BERICHTE[a][0][0];
+    meldung = null;
+  }
+
+  const zeitraum = $derived(
+    art === 'zeitraum' ? { von, bis, titel: `${datumDE(von)} – ${datumDE(bis)}` } : zeitraumFuer(art, bezug)
+  );
+  const gueltig = $derived(!!zeitraum.von && !!zeitraum.bis && zeitraum.von <= zeitraum.bis);
+  const bisAuswertung = $derived(zeitraum.bis < heute ? zeitraum.bis : heute);
+  const summen = $derived(gueltig && zeitraum.von <= heute ? berichtTage(speicher.daten, zeitraum.von, bisAuswertung, heute).summen : null);
+
+  // Tagesnachweis: Arbeitsort und Anlass direkt hier pflegen
+  const tag = $derived(art === 'tag' ? speicher.tage.get(bezug) : undefined);
+  let anlass = $state('');
+  $effect(() => {
+    bezug;
+    anlass = untrack(() => speicher.tage.get(bezug)?.anlass ?? '');
+  });
+  async function ortSetzen(ort: Arbeitsort) {
+    if (!tag) return;
+    await speicher.speichereTag(setzeArbeitsort(tag, ort, ort === 'buero' ? '' : anlass, new Date().toISOString()));
+  }
+  async function anlassSichern() {
+    if (!tag || anlass.trim() === (tag.anlass ?? '')) return;
+    await speicher.speichereTag(setzeArbeitsort(tag, tag.arbeitsort, anlass, new Date().toISOString()));
+  }
+
+  const TITEL: Record<Bericht, string> = {
+    nachweis: 'Arbeitszeitnachweis',
+    kompakt: 'Übersicht',
+    detail: 'Detailnachweis',
+    konten: 'Kontenverlauf',
+    jahr: 'Jahresübersicht'
+  };
+  const berichtTitel = $derived(
+    bericht === 'kompakt' ? (art === 'woche' ? 'Wochenübersicht' : art === 'monat' ? 'Monatsjournal kompakt' : 'Übersicht') : bericht === 'detail' && art === 'monat' ? 'Monatsjournal detailliert' : TITEL[bericht]
+  );
+  const dateiname = (endung: string) =>
+    `zeiterfassung-${berichtTitel.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-')}-${zeitraum.von}${zeitraum.bis !== zeitraum.von ? `-bis-${zeitraum.bis}` : ''}.${endung}`;
+
+  async function exportieren(format: 'pdf' | 'csv') {
+    if (!gueltig || arbeitet) return;
+    arbeitet = true;
+    meldung = null;
+    try {
+      const d = speicher.daten;
+      const { von: v, bis: b, titel } = zeitraum;
+      let inhalt: Blob;
+      if (format === 'pdf') {
+        // PDF-Bibliothek erst bei Bedarf laden – hält den App-Start schnell
+        const { pdfDetail, pdfJahr, pdfKompakt, pdfKonten, pdfTagesnachweis } = await import('../lib/pdf');
+        if (bericht === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, unterschrift);
+        else if (bericht === 'detail') inhalt = pdfDetail(d, v, b, heute, berichtTitel, titel);
+        else if (bericht === 'konten') inhalt = pdfKonten(d, v, b, heute, titel);
+        else if (bericht === 'jahr') inhalt = pdfJahr(d, jahrVon(v), heute);
+        else inhalt = pdfKompakt(d, v, b, heute, berichtTitel, titel);
+      } else {
+        const text = bericht === 'jahr' ? csvJahr(d, jahrVon(v), heute) : bericht === 'konten' ? csvKonten(d, v, b, heute) : csvTage(d, v, b, heute);
+        inhalt = new Blob([text], { type: 'text/csv;charset=utf-8' });
+      }
+      const r = await teileDatei(inhalt, dateiname(format));
+      meldung = r === 'abgebrochen' ? null : r === 'geteilt' ? 'Bericht geteilt' : 'Bericht gespeichert';
+    } catch (e) {
+      meldung = `Der Bericht konnte nicht erstellt werden: ${e instanceof Error ? e.message : e}`;
+    } finally {
+      arbeitet = false;
+    }
+  }
+</script>
+
+<Titel titel="Berichte" unter="Auswertungen" {oeffneEinstellungen} />
+
+<div class="segmente">
+  {#each ARTEN as [id, name] (id)}
+    <button type="button" aria-pressed={art === id} onclick={() => artWaehlen(id)}>{name}</button>
+  {/each}
+</div>
+
+{#if art === 'zeitraum'}
+  <div class="gruppe">
+    <label class="zeile"><span class="l">Von</span><input class="datum" type="date" id="bericht-von" bind:value={von} /></label>
+    <label class="zeile"><span class="l">Bis</span><input class="datum" type="date" id="bericht-bis" bind:value={bis} min={von} /></label>
+  </div>
+  {#if !gueltig}<p class="fehler" role="alert">Das Enddatum muss am oder nach dem Beginn liegen.</p>{/if}
+{:else}
+  <div class="stepper">
+    <button type="button" aria-label="Zurück" onclick={() => (bezug = blaettere(art as Exclude<Zeitraumart, 'zeitraum'>, bezug, -1))}>‹</button>
+    <span>{zeitraum.titel}</span>
+    <button type="button" aria-label="Weiter" onclick={() => (bezug = blaettere(art as Exclude<Zeitraumart, 'zeitraum'>, bezug, 1))}>›</button>
+  </div>
+{/if}
+
+{#if summen}
+  <section class="kachel werte" aria-label="Kennzahlen">
+    <div><span class="etikett">Ist</span><b class="num">{dauer(summen.ist)}</b></div>
+    <div><span class="etikett">Soll</span><b class="num">{dauer(summen.soll)}</b></div>
+    <div><span class="etikett">Saldo</span><b class="num">{dauer(summen.saldoNachher - summen.saldoVorher, true)}</b></div>
+    <div><span class="etikett">Zuschläge</span><b class="num">{dauer(-summen.zuschlag, true)}</b></div>
+  </section>
+{/if}
+
+{#if art === 'tag'}
+  {#if tag && tag.kommen !== null}
+    <h2 class="abschnitt">Arbeitsort</h2>
+    <div class="segmente">
+      {#each Object.entries(ORTE) as [id, name] (id)}
+        <button type="button" aria-pressed={tag.arbeitsort === id} onclick={() => ortSetzen(id as Arbeitsort)}>{name}</button>
+      {/each}
+    </div>
+    <div class="gruppe">
+      {#if tag.arbeitsort !== 'buero'}
+        <label class="zeile"><span class="l">Anlass</span><input class="text" id="bericht-anlass" placeholder="z. B. Seminar" bind:value={anlass} onblur={anlassSichern} /></label>
+      {/if}
+      <div class="zeile"><span class="l">{uhrzeit(tag.kommen)} – {tag.gehen !== null ? uhrzeit(tag.gehen) : '…'}</span><span class="w">{tag.pausen.length} {tag.pausen.length === 1 ? 'Pause' : 'Pausen'}</span></div>
+    </div>
+  {:else}
+    <p class="hinweistext">Für diesen Tag ist keine Arbeitszeit erfasst. Der Nachweis enthält dann nur Soll und Tagesart.</p>
+  {/if}
+{/if}
+
+<h2 class="abschnitt">Bericht</h2>
+<div class="gruppe">
+  {#each BERICHTE[art] as [id, name, info] (id)}
+    <button type="button" class="zeile" aria-pressed={bericht === id} onclick={() => (bericht = id)}>
+      <span class="l">
+        {@html bericht === id ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}
+        <span>{name}<small>{info}</small></span>
+      </span>
+    </button>
+  {/each}
+  {#if bericht === 'nachweis'}
+    <label class="zeile">
+      <span class="l">Mit Unterschriftsfeldern</span>
+      <input type="checkbox" class="schalter" id="bericht-unterschrift" bind:checked={unterschrift} />
+    </label>
+  {/if}
+</div>
+
+<div class="knoepfe">
+  <button type="button" class="knopf haupt" disabled={!gueltig || arbeitet} onclick={() => exportieren('pdf')}>{arbeitet ? 'Wird erstellt …' : 'PDF'}</button>
+  <button type="button" class="knopf neben" disabled={!gueltig || arbeitet} onclick={() => exportieren('csv')}>CSV</button>
+</div>
+{#if meldung}<p class="hinweistext mitte" role="status">{meldung}</p>{/if}
+<p class="hinweistext">PDF im Format A4 Hochformat. Über das Teilen-Menü lässt sich der Bericht in „Dateien“ sichern, per Mail senden oder drucken.</p>
+
+<style>
+  .stepper {
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
+    align-items: center;
+    background: var(--group);
+    border-radius: 14px;
+    text-align: center;
+    font-weight: 600;
+    min-height: 46px;
+  }
+  .stepper button {
+    font-size: 24px;
+    height: 46px;
+    color: var(--label2);
+  }
+  .werte {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+    padding: 14px 18px;
+  }
+  .werte div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .werte b {
+    font-size: 24px;
+    color: var(--lemon);
+  }
+  .datum,
+  .text {
+    font: inherit;
+    font-weight: 600;
+    border: none;
+    background: var(--fill);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--label);
+  }
+  .text {
+    flex: 1;
+    min-width: 0;
+    max-width: 65%;
+    text-align: right;
+    font-weight: 500;
+  }
+  .schalter {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 51px;
+    height: 31px;
+    border-radius: 99px;
+    background: var(--fill);
+    position: relative;
+    transition: background 0.2s;
+    flex: none;
+  }
+  .schalter::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+  }
+  .schalter:checked {
+    background: var(--night);
+  }
+  .schalter:checked::after {
+    transform: translateX(20px);
+    background: var(--lemon);
+  }
+  .knoepfe {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .mitte {
+    text-align: center;
+  }
+  .fehler {
+    margin: 0;
+    color: var(--minus);
+    padding: 0 16px;
+    font-size: 14px;
+  }
+</style>

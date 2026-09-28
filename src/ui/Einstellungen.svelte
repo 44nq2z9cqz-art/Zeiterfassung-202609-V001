@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { gueltigAm } from '../core/einstellungen';
   import { type Datum, dauer, uhrzeit } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
@@ -11,6 +12,14 @@
   let suche = $state<'bereit' | 'laeuft' | 'fertig'>('bereit');
 
   const e = $derived(speicher.einstellungen);
+  let name = $state(untrack(() => speicher.einstellungen.name));
+  let personalnummer = $state(untrack(() => speicher.einstellungen.personalnummer));
+  async function personSichern() {
+    const n = name.trim();
+    const p = personalnummer.trim();
+    if (n === e.name && p === e.personalnummer) return;
+    await speicher.speichereEinstellungen({ ...e, name: n, personalnummer: p });
+  }
   const regel = $derived(gueltigAm(e.pausenregel, heute));
   const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   const tageText = $derived(regel.wochentage.map((w) => WT[w]).join(', '));
@@ -50,6 +59,13 @@
           <span class="w">{speicher.tage.size}</span>
         </div>
       </div>
+
+      <h2 class="abschnitt">Für Berichte</h2>
+      <div class="gruppe">
+        <label class="zeile"><span class="l">Name</span><input class="eingabe" id="e-name" autocomplete="name" placeholder="optional" bind:value={name} onblur={personSichern} /></label>
+        <label class="zeile"><span class="l">Personalnummer</span><input class="eingabe" id="e-pnr" inputmode="numeric" placeholder="optional" bind:value={personalnummer} onblur={personSichern} /></label>
+      </div>
+      <p class="hinweistext">Erscheint oben rechts auf jedem PDF-Bericht. Bleibt nur auf diesem Gerät.</p>
 
       <h2 class="abschnitt">Arbeitszeit</h2>
       <div class="gruppe">
@@ -112,6 +128,16 @@
   .leiste .t {
     font-weight: 600;
     font-size: 17px;
+  }
+  .eingabe {
+    flex: 1;
+    min-width: 0;
+    max-width: 60%;
+    text-align: right;
+    font: inherit;
+    border: none;
+    background: transparent;
+    color: var(--label);
   }
   .fertig {
     justify-self: end;
