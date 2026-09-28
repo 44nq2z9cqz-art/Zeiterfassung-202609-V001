@@ -255,7 +255,7 @@ und im Detailbericht mit Begründung erklärt.
 ✅ **F1 Erinnerungen nur bei geöffneter App.** Die App wird zu Arbeitsbeginn ohnehin gestartet. Es gibt keinen Server und keine Push-Nachrichten bei geschlossener App.
 Solange die App geöffnet ist oder im Hintergrund noch läuft, erscheinen Hinweise, soweit iOS es zulässt als Systembenachrichtigung, sonst als Banner in der App.
 Die Hinweise sind einzeln abschaltbar:
-- Pausenfenster: z. B. um 13:30, wenn noch Pause im Fenster fehlt (Uhrzeit einstellbar)
+- Pausenfenster: ab 13:15 Uhr, wenn noch Pause im Fenster fehlt – dann lassen sich 30 Minuten bis 14:00 noch nehmen (Uhrzeit einstellbar)
 - Pause: nach 5:15 Stunden ohne Pause (wie in der alten App)
 - Arbeitsende: zur eingestellten Uhrzeit, wenn noch nicht gegangen
 - Backup: beim Öffnen, wenn das letzte Backup älter als X Tage ist

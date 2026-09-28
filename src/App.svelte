@@ -5,6 +5,7 @@
   import { aktualisierung } from './lib/update.svelte';
   import Einstellungen from './ui/Einstellungen.svelte';
   import Heute from './ui/Heute.svelte';
+  import Kalender from './ui/Kalender.svelte';
   import Konten from './ui/Konten.svelte';
   import Platzhalter from './ui/Platzhalter.svelte';
   import { symbole } from './ui/symbole';
@@ -49,7 +50,7 @@
   {:else if reiter === 'heute'}
     <Heute {oeffneEinstellungen} />
   {:else if reiter === 'kalender'}
-    <Platzhalter titel="Kalender" meilenstein="M3" text="Monatsansicht, Tag bearbeiten und Pausen korrigieren kommen mit Meilenstein M3." {oeffneEinstellungen} />
+    <Kalender {heute} {oeffneEinstellungen} />
   {:else}
     <Platzhalter titel="Berichte" meilenstein="M5" text="Tagesnachweis, Wochen-, Monats- und Jahresberichte als PDF und CSV kommen mit Meilenstein M5." {oeffneEinstellungen} />
   {/if}

@@ -31,7 +31,7 @@ class Speicher {
       this.tage = new Map(tage.sort((a, b) => a.datum.localeCompare(b.datum)).map((t) => [t.datum, t]));
       this.buchungen = buchungen;
       if (einstellungen) {
-        this.einstellungen = einstellungen;
+        this.einstellungen = await this.umstellen(einstellungen);
       } else {
         await schreibeMeta(META.einstellungen, this.einstellungen);
       }
@@ -40,6 +40,21 @@ class Speicher {
       this.fehler = e instanceof Error ? e.message : String(e);
     }
     this.speicherSichern();
+  }
+
+  /** Einmalige Anpassungen gespeicherter Einstellungen an neue Standardwerte. */
+  private async umstellen(e: Einstellungen): Promise<Einstellungen> {
+    const erledigt = (await leseMeta<string[]>(META.umstellungen)) ?? [];
+    let neu = e;
+    // v0.3: Hinweis zum Pausenfenster ab 13:15 statt 13:30
+    if (!erledigt.includes('hinweis-1315')) {
+      if (neu.hinweise.pausenfenster.uhrzeit === 13 * 60 + 30) {
+        neu = { ...neu, hinweise: { ...neu.hinweise, pausenfenster: { ...neu.hinweise.pausenfenster, uhrzeit: 13 * 60 + 15 } } };
+        await schreibeMeta(META.einstellungen, neu);
+      }
+      await schreibeMeta(META.umstellungen, [...erledigt, 'hinweis-1315']);
+    }
+    return neu;
   }
 
   /** iOS bitten, die Daten dauerhaft zu behalten (Konzept F). */
@@ -58,6 +73,21 @@ class Speicher {
     neu.set(tag.datum, tag);
     this.tage = new Map([...neu.entries()].sort(([a], [b]) => a.localeCompare(b)));
     await db.tage.put($state.snapshot(tag) as Tag);
+  }
+
+  /** Speichert mehrere Tage in einem Schritt (z. B. Urlaubszeitraum). */
+  async speichereTage(liste: Tag[]) {
+    const neu = new Map(this.tage);
+    for (const t of liste) neu.set(t.datum, t);
+    this.tage = new Map([...neu.entries()].sort(([a], [b]) => a.localeCompare(b)));
+    await db.tage.bulkPut(liste.map((t) => $state.snapshot(t) as Tag));
+  }
+
+  async loescheTag(datum: Datum) {
+    const neu = new Map(this.tage);
+    neu.delete(datum);
+    this.tage = neu;
+    await db.tage.delete(datum);
   }
 
   /** Ersetzt alle Daten durch den Import. Vorher wird eine Sicherheitskopie angelegt. */
