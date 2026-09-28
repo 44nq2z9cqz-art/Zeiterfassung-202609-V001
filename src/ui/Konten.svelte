@@ -1,6 +1,7 @@
 <script lang="ts">
   import { aufteilung, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
-  import type { Buchung } from '../core/modell';
+  import type { Buchung, Buchungsart, Konto } from '../core/modell';
+  import BuchungBlatt from './BuchungBlatt.svelte';
   import { laufenderTag, liveStand } from '../core/stempeln';
   import { type Datum, datumDE, dauer, jahrVon, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
@@ -46,6 +47,18 @@
     resturlaub: 'Resturlaub Vorjahre',
     sonderurlaub: 'Sonderurlaub'
   };
+  let bearbeiten = $state<{ konto: Konto; art: Buchungsart; vorhanden?: Buchung } | null>(null);
+  const NEU_ZEIT: [Buchungsart, string][] = [
+    ['vortrag', 'Vortrag erfassen'],
+    ['abgleich', 'Abgleich mit Firmensystem'],
+    ['auszahlung', 'Auszahlung'],
+    ['korrektur', 'Korrektur']
+  ];
+  const NEU_URLAUB: [Buchungsart, string][] = [
+    ['resturlaub', 'Resturlaub Vorjahre'],
+    ['sonderurlaub', 'Sonderurlaub'],
+    ['korrektur', 'Korrektur']
+  ];
   let uebersichtOffen = $state(false);
   const zeitraeume = $derived(urlaubszeitraeume(speicher.daten, jahr, heute));
   const zahl = (t: number) => String(t).replace('.', ',');
@@ -124,10 +137,14 @@
       </div>
     </div>
     {#each liste as b (b.id)}
-      <div class="zeile">
-        <span class="l"><span>{ARTEN[b.art]}<small>{datumDE(b.datum)}{b.kommentar ? ` · ${b.kommentar}` : ''}</small></span></span>
-        <span class="w stark">{b.konto === 'zeit' ? dauer(b.betrag, true) : tageText(b.betrag)}</span>
-      </div>
+      <button type="button" class="zeile" onclick={() => (bearbeiten = { konto: b.konto, art: b.art, vorhanden: b })}>
+        <span class="l">
+          <span>{ARTEN[b.art]}
+            <small>{datumDE(b.datum)}{b.abgleich ? ` · Firma ${dauer(b.abgleich.firma, true)}, App ${dauer(b.abgleich.app, true)}` : ''}{b.kommentar ? ` · ${b.kommentar}` : ''}</small>
+          </span>
+        </span>
+        <span class="w stark">{b.konto === 'zeit' ? dauer(b.betrag, true) : tageText(b.betrag)} <span class="pfeil">›</span></span>
+      </button>
     {:else}
       <div class="zeile"><span class="l leise">Noch keine Buchungen</span></div>
     {/each}
@@ -137,9 +154,17 @@
         <span class="w stark">{tageText(urlaub.jahresanspruch)}</span>
       </div>
     {/if}
-    <div class="zeile"><span class="l leise">Buchungen erfassen folgt mit Meilenstein M4.</span></div>
+    {#each kontoAnsicht === 'zeit' ? NEU_ZEIT : NEU_URLAUB as [art, text] (art)}
+      <button type="button" class="zeile aktion" onclick={() => (bearbeiten = { konto: kontoAnsicht, art })}>
+        <span class="l">+ {text}</span><span class="pfeil">›</span>
+      </button>
+    {/each}
   {/if}
 </section>
+
+{#if bearbeiten}
+  <BuchungBlatt konto={bearbeiten.konto} art={bearbeiten.art} vorhanden={bearbeiten.vorhanden} {heute} schliessen={() => (bearbeiten = null)} />
+{/if}
 
 <style>
   .leer {

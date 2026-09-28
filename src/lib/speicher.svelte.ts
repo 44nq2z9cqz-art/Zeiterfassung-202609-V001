@@ -83,6 +83,16 @@ class Speicher {
     await db.tage.bulkPut(liste.map((t) => $state.snapshot(t) as Tag));
   }
 
+  async speichereBuchung(b: Buchung) {
+    this.buchungen = [...this.buchungen.filter((x) => x.id !== b.id), b];
+    await db.buchungen.put($state.snapshot(b) as Buchung);
+  }
+
+  async loescheBuchung(id: string) {
+    this.buchungen = this.buchungen.filter((x) => x.id !== id);
+    await db.buchungen.delete(id);
+  }
+
   async loescheTage(daten: Datum[]) {
     const neu = new Map(this.tage);
     for (const d of daten) neu.delete(d);

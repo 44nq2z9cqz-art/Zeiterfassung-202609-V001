@@ -16,13 +16,13 @@ describe('B3 Zeitkonto', () => {
 
   it('Buchungen wirken ab ihrem Datum, auch ein Vortrag vor dem App-Start', () => {
     const buchungen: Buchung[] = [
-      { id: 'v', konto: 'zeit', art: 'vortrag', datum: '2026-03-08', betrag: 538 * 60 + 16 },
+      { id: 'v', konto: 'zeit', art: 'vortrag', datum: '2026-03-08', betrag: 100 * 60 },
       { id: 'a', konto: 'zeit', art: 'auszahlung', datum: '2026-08-15', betrag: -600 }
     ];
     const daten = bestand('2026-08-10', [], buchungen);
     // 10.–14.08. ohne Eintrag: 5 × −8:00
-    expect(zeitkontoSaldo(daten, '2026-08-14', HEUTE)).toBe(538 * 60 + 16 - 2400);
-    expect(zeitkontoSaldo(daten, '2026-08-16', HEUTE)).toBe(538 * 60 + 16 - 2400 - 600);
+    expect(zeitkontoSaldo(daten, '2026-08-14', HEUTE)).toBe(100 * 60 - 2400);
+    expect(zeitkontoSaldo(daten, '2026-08-16', HEUTE)).toBe(100 * 60 - 2400 - 600);
   });
 
   it('Aufteilung Sockel / auszahlbar wie im Konzept', () => {
