@@ -246,36 +246,6 @@
     text-align: right;
     font-weight: 500;
   }
-  .schalter {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 51px;
-    height: 31px;
-    border-radius: 99px;
-    background: var(--fill);
-    position: relative;
-    transition: background 0.2s;
-    flex: none;
-  }
-  .schalter::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 27px;
-    height: 27px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s;
-  }
-  .schalter:checked {
-    background: var(--night);
-  }
-  .schalter:checked::after {
-    transform: translateX(20px);
-    background: var(--lemon);
-  }
   .knoepfe {
     display: grid;
     grid-template-columns: 1fr 1fr;

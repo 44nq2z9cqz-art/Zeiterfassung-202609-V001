@@ -16,6 +16,8 @@
   import type { Tag } from '../core/modell';
   import { MONATE, WOCHENTAGE, type Datum, dauer, uhrzeit, wochentag, zerlege } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
+  import { tageSeitBackup } from '../core/backup';
+  import { backupSichern } from '../lib/sichern';
   import Ring from './Ring.svelte';
   import { symbole } from './symbole';
   import Titel from './Titel.svelte';
@@ -72,6 +74,23 @@
       lauf.minute >= e.hinweise.pausenfenster.uhrzeit && lauf.minute < regel.fensterEnde && fehlend > 0
   );
   const hinweisPause = $derived(!!stand && e.hinweise.pauseNach.aktiv && stand.ohnePause >= e.hinweise.pauseNach.minuten);
+  const hinweisEnde = $derived(begonnen && !beendet && e.hinweise.arbeitsende.aktiv && lauf.minute >= e.hinweise.arbeitsende.uhrzeit);
+
+  // Backup-Erinnerung (Konzept A3)
+  const seitBackup = $derived(tageSeitBackup(speicher.letztesBackup, jetzt));
+  const backupFaellig = $derived(speicher.hatDaten && (seitBackup === null || seitBackup >= e.hinweise.backupNachTagen));
+  let backupLaeuft = $state(false);
+  async function jetztSichern() {
+    backupLaeuft = true;
+    try {
+      const r = await backupSichern();
+      if (r !== 'abgebrochen') zeige('Backup gesichert');
+    } catch (err) {
+      zeige(`Backup nicht gesichert: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      backupLaeuft = false;
+    }
+  }
 
   // ─── Aktionen ────────────────────────────────────────────────────────────
   let beschaeftigt = $state(false);
@@ -127,19 +146,29 @@
 
 <Titel titel="Heute" unter={untertitel} {oeffneEinstellungen} />
 
+{#if backupFaellig}
+  <div class="hinweis backup" role="status">
+    <span>
+      <b>Backup fällig.</b>
+      {seitBackup === null ? 'Es wurde noch kein Backup gesichert.' : `Das letzte Backup ist ${seitBackup} Tage alt.`}
+    </span>
+    <button type="button" class="knopf haupt klein" disabled={backupLaeuft} onclick={jetztSichern}>Sichern</button>
+  </div>
+{/if}
+
 {#if art !== 'arbeit'}
   <div class="gruppe karte">
     <span class="marke">{ARTEN[art]}</span>
-    <p>Heute ist als {ARTEN[art]} eingetragen, deshalb wird nicht gestempelt. Ändern lässt sich das im Kalender (ab M3).</p>
+    <p>Heute ist als {ARTEN[art]} eingetragen, deshalb wird nicht gestempelt. Ändern lässt sich das im Kalender.</p>
   </div>
 {:else}
-  {#if hinweisFenster || hinweisPause}
+  {#if hinweisFenster || hinweisPause || hinweisEnde}
     <div class="hinweis" role="status">
       <span class="plakette">!</span>
       <span>
-        {#if hinweisFenster}Noch <b>{fehlend} Min</b> Pause bis {uhrzeit(regel!.fensterEnde)} nötig, sonst Zuschlag.{/if}
-        {#if hinweisFenster && hinweisPause}<br />{/if}
-        {#if hinweisPause}Seit <b>{dauer(stand!.ohnePause)} Std.</b> ohne Pause.{/if}
+        {#if hinweisFenster}Noch <b>{fehlend} Min</b> Pause bis {uhrzeit(regel!.fensterEnde)} nötig, sonst Zuschlag.<br />{/if}
+        {#if hinweisPause}Seit <b>{dauer(stand!.ohnePause)} Std.</b> ohne Pause.<br />{/if}
+        {#if hinweisEnde}Es ist nach {uhrzeit(e.hinweise.arbeitsende.uhrzeit)} – Gehen stempeln?{/if}
       </span>
     </div>
   {/if}
@@ -279,6 +308,16 @@
     padding: 12px 16px;
     font-size: 15px;
     line-height: 1.4;
+  }
+  .hinweis.backup {
+    align-items: center;
+    justify-content: space-between;
+  }
+  .knopf.klein {
+    width: auto;
+    padding: 9px 16px;
+    font-size: 15px;
+    flex: none;
   }
   .hinweis .plakette {
     margin-top: 1px;

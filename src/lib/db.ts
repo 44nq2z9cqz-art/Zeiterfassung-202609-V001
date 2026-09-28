@@ -30,7 +30,8 @@ export const META = {
   sicherungVorImport: 'sicherung-vor-import',
   letzterImport: 'letzter-import',
   letztesBackup: 'letztes-backup',
-  umstellungen: 'umstellungen'
+  umstellungen: 'umstellungen',
+  letzteWiederherstellung: 'letzte-wiederherstellung'
 } as const;
 
 export async function leseMeta<T>(schluessel: string): Promise<T | undefined> {

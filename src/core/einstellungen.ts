@@ -31,6 +31,21 @@ export function standardEinstellungen(appStart: Datum): Einstellungen {
   };
 }
 
+/**
+ * Neuen Wert ab einem Datum setzen (Konzept B1: Änderungen wirken nicht rückwirkend).
+ * Gibt es für das Datum schon einen Eintrag, wird er ersetzt.
+ */
+export function setzeAb<T>(liste: Gueltig<T>[], ab: Datum, wert: T): Gueltig<T>[] {
+  return [...liste.filter((g) => g.ab !== ab), { ab, wert }].sort((a, b) => a.ab.localeCompare(b.ab));
+}
+
+/** Eintrag entfernen – der erste (älteste) bleibt immer erhalten. */
+export function entferneAb<T>(liste: Gueltig<T>[], ab: Datum): Gueltig<T>[] {
+  const sortiert = [...liste].sort((a, b) => a.ab.localeCompare(b.ab));
+  if (sortiert.length <= 1 || sortiert[0].ab === ab) return sortiert;
+  return sortiert.filter((g) => g.ab !== ab);
+}
+
 /** Der am Datum gültige Wert: der letzte Eintrag mit ab ≤ datum, sonst der früheste. */
 export function gueltigAm<T>(liste: Gueltig<T>[], datum: Datum): T {
   const sortiert = [...liste].sort((a, b) => a.ab.localeCompare(b.ab));
