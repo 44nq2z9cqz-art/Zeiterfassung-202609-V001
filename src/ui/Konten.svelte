@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { aufteilung, urlaubskonto, zeitkontoSaldo } from '../core/konten';
+  import { aufteilung, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
   import type { Buchung } from '../core/modell';
   import { laufenderTag, liveStand } from '../core/stempeln';
   import { type Datum, datumDE, dauer, jahrVon, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
+  import Blatt from './Blatt.svelte';
   import Titel from './Titel.svelte';
 
   let { heute, oeffneEinstellungen }: { heute: Datum; oeffneEinstellungen: () => void } = $props();
@@ -45,6 +46,9 @@
     resturlaub: 'Resturlaub Vorjahre',
     sonderurlaub: 'Sonderurlaub'
   };
+  let uebersichtOffen = $state(false);
+  const zeitraeume = $derived(urlaubszeitraeume(speicher.daten, jahr, heute));
+  const zahl = (t: number) => String(t).replace('.', ',');
   const tageText = (t: number) => `${t > 0 ? '+' : ''}${String(t).replace('.', ',')} T`;
 </script>
 
@@ -78,8 +82,34 @@
       <i style="flex:1;background:var(--lemon)"></i>
     </div>
   </div>
-  <div class="zeile"><span class="l leise">{String(urlaub.genommen).replace('.', ',')} genommen · {String(urlaub.geplant).replace('.', ',')} geplant</span></div>
+  <button type="button" class="zeile" onclick={() => (uebersichtOffen = true)}>
+    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} geplant</span><span class="pfeil">›</span>
+  </button>
 </section>
+
+{#if uebersichtOffen}
+  <Blatt titel="Urlaub {jahr}" schliessen={() => (uebersichtOffen = false)}>
+    <div class="gruppe">
+      {#if urlaub.uebertrag}<div class="zeile"><span class="l">Übertrag aus {jahr - 1}</span><span class="w">{zahl(urlaub.uebertrag)}</span></div>{/if}
+      <div class="zeile"><span class="l">Jahresanspruch</span><span class="w">{zahl(urlaub.jahresanspruch)}</span></div>
+      {#if urlaub.buchungen}<div class="zeile"><span class="l">Buchungen (Resturlaub, Sonderurlaub)</span><span class="w">{urlaub.buchungen > 0 ? '+' : ''}{zahl(urlaub.buchungen)}</span></div>{/if}
+      <div class="zeile"><span class="l"><b>Anspruch gesamt</b></span><span class="w stark">{zahl(urlaub.gesamt)}</span></div>
+    </div>
+    <h2 class="abschnitt">Urlaubstage</h2>
+    <div class="gruppe">
+      {#each zeitraeume as z (z.von)}
+        <div class="zeile">
+          <span class="l"><span>{z.von === z.bis ? datumDE(z.von) : `${datumDE(z.von).slice(0, 6)} – ${datumDE(z.bis)}`}<small>{z.geplant ? 'geplant' : 'genommen'}</small></span></span>
+          <span class="w stark">{zahl(z.tage)} {z.tage === 1 ? 'Tag' : 'Tage'}</span>
+        </div>
+      {:else}
+        <div class="zeile"><span class="l leise">Noch kein Urlaub eingetragen</span></div>
+      {/each}
+      <div class="zeile"><span class="l"><b>Rest</b></span><span class="w stark">{zahl(urlaub.rest)}</span></div>
+    </div>
+    <p class="hinweistext">Ein falscher Eintrag lässt sich im Kalender korrigieren: Tag öffnen und die Tagesart ändern, oder „Zeitraum“ → „Entfernen“.</p>
+  </Blatt>
+{/if}
 
 <section class="gruppe" aria-label="Buchungen">
   <button type="button" class="zeile" aria-expanded={buchungenOffen} onclick={() => (buchungenOffen = !buchungenOffen)}>

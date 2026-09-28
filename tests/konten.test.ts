@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aufteilung, tagesreihe, urlaubskonto, zeitkontoSaldo } from '../src/core/konten';
+import { aufteilung, tagesreihe, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../src/core/konten';
 import type { Buchung, Tag } from '../src/core/modell';
 import { tageVonBis } from '../src/core/zeit';
 import { arbeitstag, bestand, tagesart } from './hilfen';
@@ -68,5 +68,22 @@ describe('Kalender vor dem App-Start', () => {
     const r = tagesreihe(bestand('2026-03-09'), '2026-03-05', '2026-03-10', HEUTE);
     expect(r.zeilen.map((z) => z.status)).toEqual(['frei', 'frei', 'frei', 'frei', 'ohneEintrag', 'ohneEintrag']);
     expect(r.saldoNachher).toBe(-960);
+  });
+});
+
+describe('B4 Urlaubszeiträume', () => {
+  it('fasst zusammenhängende Urlaubstage zu Zeiträumen zusammen', () => {
+    const tage = [
+      '2026-01-02',
+      ...['2026-06-19', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26', '2026-06-29', '2026-06-30', '2026-07-01', '2026-07-02', '2026-07-03', '2026-07-06'],
+      '2026-09-28', '2026-09-29'
+    ].map((d) => tagesart(d, 'urlaub'));
+    const z = urlaubszeitraeume(bestand('2026-01-01', tage), 2026, HEUTE);
+    expect(z).toEqual([
+      { von: '2026-01-02', bis: '2026-01-02', tage: 1, geplant: false },
+      { von: '2026-06-19', bis: '2026-07-06', tage: 12, geplant: false },
+      { von: '2026-09-28', bis: '2026-09-28', tage: 1, geplant: false },
+      { von: '2026-09-29', bis: '2026-09-29', tage: 1, geplant: true }
+    ]);
   });
 });

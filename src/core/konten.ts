@@ -71,6 +71,46 @@ export interface Urlaubskonto {
   rest: number;
 }
 
+export interface Urlaubszeitraum {
+  von: Datum;
+  bis: Datum;
+  tage: number;
+  geplant: boolean;
+}
+
+/**
+ * Alle Urlaubszeiträume eines Jahres. Aufeinanderfolgende Urlaubstage bilden einen Zeitraum,
+ * auch wenn nur Wochenenden oder Feiertage dazwischen liegen.
+ */
+export function urlaubszeitraeume(daten: Datenbestand, jahr: number, heuteDatum: Datum): Urlaubszeitraum[] {
+  const tage = [...daten.tage.values()]
+    .filter((t) => t.art === 'urlaub' && jahrVon(t.datum) === jahr)
+    .map((t) => ({ datum: t.datum, wert: bewerteTag(t.datum, t, daten.einstellungen, heuteDatum).urlaubstage }))
+    .filter((t) => t.wert > 0)
+    .sort((a, b) => a.datum.localeCompare(b.datum));
+  const liste: Urlaubszeitraum[] = [];
+  for (const t of tage) {
+    const letzter = liste.at(-1);
+    const geplant = t.datum > heuteDatum;
+    let luecke = false;
+    if (letzter) {
+      for (let d = plusTage(letzter.bis, 1); d < t.datum; d = plusTage(d, 1)) {
+        if (bewerteTag(d, undefined, daten.einstellungen, heuteDatum).soll > 0) {
+          luecke = true;
+          break;
+        }
+      }
+    }
+    if (letzter && !luecke && letzter.geplant === geplant) {
+      letzter.bis = t.datum;
+      letzter.tage += t.wert;
+    } else {
+      liste.push({ von: t.datum, bis: t.datum, tage: t.wert, geplant });
+    }
+  }
+  return liste;
+}
+
 export function urlaubskonto(daten: Datenbestand, jahr: number, heuteDatum: Datum): Urlaubskonto {
   const startJahr = jahrVon(daten.einstellungen.appStart);
   const leer: Urlaubskonto = { jahr, uebertrag: 0, jahresanspruch: 0, buchungen: 0, gesamt: 0, genommen: 0, geplant: 0, rest: 0 };
