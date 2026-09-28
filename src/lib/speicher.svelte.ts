@@ -83,6 +83,13 @@ class Speicher {
     await db.tage.bulkPut(liste.map((t) => $state.snapshot(t) as Tag));
   }
 
+  async loescheTage(daten: Datum[]) {
+    const neu = new Map(this.tage);
+    for (const d of daten) neu.delete(d);
+    this.tage = neu;
+    await db.tage.bulkDelete(daten);
+  }
+
   async loescheTag(datum: Datum) {
     const neu = new Map(this.tage);
     neu.delete(datum);

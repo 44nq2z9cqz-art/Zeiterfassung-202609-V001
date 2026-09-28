@@ -118,11 +118,32 @@ export interface Zeitraumergebnis {
   frei: number;
   /** Tage, die schon so eingetragen sind */
   bereits: number;
+  /** Nur beim Entfernen: Tage, die danach leer sind und gelöscht werden */
+  geloescht: Datum[];
 }
 
-/** Urlaub oder Krankheit für einen Zeitraum eintragen (z. B. 02.–13.11.). */
-export function zeitraumSetzen(tage: Map<Datum, Tag>, von: Datum, bis: Datum, art: 'urlaub' | 'krank', am: string): Zeitraumergebnis {
-  const ergebnis: Zeitraumergebnis = { geaendert: [], uebersprungen: [], frei: 0, bereits: 0 };
+/**
+ * Urlaub oder Krankheit für einen Zeitraum eintragen (z. B. 02.–13.11.),
+ * oder mit „entfernen“ Urlaub und Krankheit im Zeitraum wieder zurücknehmen.
+ */
+export function zeitraumSetzen(
+  tage: Map<Datum, Tag>,
+  von: Datum,
+  bis: Datum,
+  art: 'urlaub' | 'krank' | 'entfernen',
+  am: string
+): Zeitraumergebnis {
+  const ergebnis: Zeitraumergebnis = { geaendert: [], uebersprungen: [], frei: 0, bereits: 0, geloescht: [] };
+  if (art === 'entfernen') {
+    for (const d of tageVonBis(von, bis)) {
+      const vorhanden = tage.get(d);
+      if (!vorhanden || (vorhanden.art !== 'urlaub' && vorhanden.art !== 'krank')) continue;
+      const zurueck = setzeArt(vorhanden, 'arbeit', am);
+      if (istLeer(zurueck)) ergebnis.geloescht.push(d);
+      else ergebnis.geaendert.push(zurueck);
+    }
+    return ergebnis;
+  }
   for (const d of tageVonBis(von, bis)) {
     if (urlaubstagWert(d) === 0) {
       ergebnis.frei++;

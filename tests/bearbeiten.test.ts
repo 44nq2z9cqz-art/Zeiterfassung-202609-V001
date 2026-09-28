@@ -107,3 +107,15 @@ describe('C Urlaub für einen Zeitraum', () => {
     expect(r.geaendert.map((t) => t.datum)).toEqual(['2026-01-02']);
   });
 });
+
+describe('C Zeitraum wieder entfernen', () => {
+  it('nimmt versehentlich eingetragenen Urlaub zurück und löscht leere Tage', () => {
+    const falsch = zeitraumSetzen(new Map(), '2026-01-02', '2026-02-11', 'urlaub', AM).geaendert;
+    expect(falsch).toHaveLength(29);
+    const tage = new Map(falsch.map((t) => [t.datum, t]));
+    tage.set('2026-01-05', setzeKommentar(tage.get('2026-01-05')!, 'bleibt', AM));
+    const r = zeitraumSetzen(tage, '2026-01-01', '2026-03-08', 'entfernen', AM);
+    expect(r.geloescht).toHaveLength(28);
+    expect(r.geaendert.map((t) => [t.datum, t.art])).toEqual([['2026-01-05', 'arbeit']]);
+  });
+});

@@ -63,7 +63,7 @@
   const fenster = $derived(stand?.fenster ?? null);
   const fensterLaenge = $derived(regel ? regel.fensterEnde - regel.fensterBeginn : 1);
   const pos = (m: number) => (regel ? Math.max(0, Math.min(100, ((m - regel.fensterBeginn) / fensterLaenge) * 100)) : 0);
-  const fensterVorbei = $derived(!!regel && (beendet || lauf.minute >= regel.fensterEnde));
+  const fensterVorbei = $derived(!!regel && begonnen && (beendet || lauf.minute >= regel.fensterEnde));
   const fehlend = $derived(fenster ? Math.max(fenster.fehlendGesamt, fenster.fehlendEinzel) : regel ? regel.mindestGesamt : 0);
   const greiftNicht = $derived(!!regel && begonnen && tag!.kommen! > regel.fensterBeginn);
 

@@ -45,8 +45,10 @@ export function tagesreihe(daten: Datenbestand, von: Datum, bis: Datum, heuteDat
     const zaehlt = d >= start;
     const buchungen = zeitbuchungen(daten, d, d);
     const tagesSaldo = zaehlt ? ergebnis.saldo : 0;
+    // Vor dem App-Start gibt es keine „Tage ohne Eintrag“ – dort wurde schlicht nicht erfasst
+    const status = !zaehlt && (ergebnis.status === 'ohneEintrag' || ergebnis.status === 'unvollstaendig') ? 'frei' : ergebnis.status;
     laufend += tagesSaldo + buchungen;
-    zeilen.push({ ...ergebnis, saldo: tagesSaldo, buchungen, laufend });
+    zeilen.push({ ...ergebnis, status, saldo: tagesSaldo, buchungen, laufend });
   }
   return { saldoVorher, zeilen, saldoNachher: laufend };
 }

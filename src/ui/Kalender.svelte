@@ -43,6 +43,9 @@
     if (m > 12) { m = 1; j++; }
     monat = m;
     jahr = j;
+    // Die Auswahl wandert mit, damit z. B. „Zeitraum eintragen“ im sichtbaren Monat beginnt
+    const [hj2, hm2] = zerlege(heute);
+    gewaehlt = j === hj2 && m === hm2 ? heute : datumAus(j, m, 1);
   }
   function zuHeute() {
     [jahr, monat] = zerlege(heute);

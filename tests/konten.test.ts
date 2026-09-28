@@ -62,3 +62,11 @@ describe('B4 Urlaubskonto', () => {
     expect(urlaubskonto(daten, 2027, HEUTE)).toMatchObject({ uebertrag: 49, jahresanspruch: 31, gesamt: 80 });
   });
 });
+
+describe('Kalender vor dem App-Start', () => {
+  it('zeigt Tage vor dem Start nicht als „ohne Eintrag“', () => {
+    const r = tagesreihe(bestand('2026-03-09'), '2026-03-05', '2026-03-10', HEUTE);
+    expect(r.zeilen.map((z) => z.status)).toEqual(['frei', 'frei', 'frei', 'frei', 'ohneEintrag', 'ohneEintrag']);
+    expect(r.saldoNachher).toBe(-960);
+  });
+});
