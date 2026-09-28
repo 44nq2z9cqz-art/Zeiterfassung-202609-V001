@@ -23,6 +23,8 @@ class Aktualisierung {
   }
 
   async suchen() {
+    // Ohne Netz gar nicht erst suchen: iOS blendet sonst den Hinweis zum Flugmodus ein.
+    if (!navigator.onLine) return;
     try {
       await this.registrierung?.update();
     } catch {
