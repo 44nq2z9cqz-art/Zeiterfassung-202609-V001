@@ -1,15 +1,29 @@
 <script lang="ts">
   import { aufteilung, urlaubskonto, zeitkontoSaldo } from '../core/konten';
   import type { Buchung } from '../core/modell';
+  import { laufenderTag, liveStand } from '../core/stempeln';
   import { type Datum, datumDE, dauer, jahrVon, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
   import Titel from './Titel.svelte';
 
   let { heute, oeffneEinstellungen }: { heute: Datum; oeffneEinstellungen: () => void } = $props();
 
+  let jetzt = $state(new Date());
+  $effect(() => {
+    const takt = setInterval(() => (jetzt = new Date()), 30_000);
+    return () => clearInterval(takt);
+  });
+
   const gestern = $derived(plusTage(heute, -1));
   const saldoGestern = $derived(zeitkontoSaldo(speicher.daten, gestern, heute));
-  const saldoHeute = $derived(zeitkontoSaldo(speicher.daten, heute, heute));
+  // „inkl. heute“ läuft live mit, solange heute gestempelt wird (Konzept B3)
+  const saldoHeute = $derived.by(() => {
+    const lauf = laufenderTag(speicher.tage, jetzt);
+    const tag = speicher.tage.get(heute);
+    // Nur solange der Tag offen ist; ein abgeschlossener Tag steckt schon in zeitkontoSaldo(heute)
+    const live = lauf.datum === heute && tag?.gehen === null ? liveStand(heute, tag, speicher.einstellungen, lauf.minute) : null;
+    return live ? saldoGestern + live.saldo + zeitkontoSaldo(speicher.daten, heute, heute) - zeitkontoSaldo(speicher.daten, gestern, heute) : zeitkontoSaldo(speicher.daten, heute, heute);
+  });
   const teile = $derived(aufteilung(saldoGestern, speicher.einstellungen.sockel));
   const sockelProzent = $derived(Math.max(0, Math.min(100, (teile.sockel / speicher.einstellungen.sockel) * 100)));
 

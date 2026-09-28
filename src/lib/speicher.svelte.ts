@@ -52,6 +52,14 @@ class Speicher {
     }
   }
 
+  /** Speichert einen Tag sofort in der Datenbank. */
+  async speichereTag(tag: Tag) {
+    const neu = new Map(this.tage);
+    neu.set(tag.datum, tag);
+    this.tage = new Map([...neu.entries()].sort(([a], [b]) => a.localeCompare(b)));
+    await db.tage.put($state.snapshot(tag) as Tag);
+  }
+
   /** Ersetzt alle Daten durch den Import. Vorher wird eine Sicherheitskopie angelegt. */
   async importieren(daten: Datenbestand, bericht: Pruefbericht) {
     const kopie = await exportiereAlles();

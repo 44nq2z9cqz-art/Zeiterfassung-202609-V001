@@ -4,6 +4,7 @@
   import { speicher } from './lib/speicher.svelte';
   import { aktualisierung } from './lib/update.svelte';
   import Einstellungen from './ui/Einstellungen.svelte';
+  import Heute from './ui/Heute.svelte';
   import Konten from './ui/Konten.svelte';
   import Platzhalter from './ui/Platzhalter.svelte';
   import { symbole } from './ui/symbole';
@@ -16,7 +17,7 @@
     { id: 'berichte', titel: 'Berichte' }
   ];
 
-  let reiter = $state<Reiter>('konten');
+  let reiter = $state<Reiter>('heute');
   let einstellungenOffen = $state(false);
   let heute = $state(heuteBerechnen());
 
@@ -46,7 +47,7 @@
   {:else if reiter === 'konten'}
     <Konten {heute} {oeffneEinstellungen} />
   {:else if reiter === 'heute'}
-    <Platzhalter titel="Heute" meilenstein="M2" text="Stempeln mit Kommen, Pausen und Gehen sowie die Live-Anzeige des Pausenfensters kommen mit Meilenstein M2." {oeffneEinstellungen} />
+    <Heute {oeffneEinstellungen} />
   {:else if reiter === 'kalender'}
     <Platzhalter titel="Kalender" meilenstein="M3" text="Monatsansicht, Tag bearbeiten und Pausen korrigieren kommen mit Meilenstein M3." {oeffneEinstellungen} />
   {:else}

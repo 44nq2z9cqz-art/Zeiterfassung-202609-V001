@@ -20,6 +20,8 @@ export interface Pause {
   /** null, solange die Pause läuft */
   ende: Minuten | null;
   quelle: Quelle;
+  /** Sekundengenauer Start einer live gestempelten Pause (ISO), für den Schutz vor Doppeltippen */
+  gestartetAm?: string;
 }
 
 export interface Tag {
