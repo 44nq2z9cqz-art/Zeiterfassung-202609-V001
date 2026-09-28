@@ -41,6 +41,7 @@
   let bis = $state<Datum>(untrack(() => heute));
   let bericht = $state<Bericht>('kompakt');
   let unterschrift = $state(true);
+  let protokoll = $state(false);
   let meldung = $state<string | null>(null);
   let arbeitet = $state(false);
 
@@ -97,8 +98,8 @@
       if (format === 'pdf') {
         // PDF-Bibliothek erst bei Bedarf laden – hält den App-Start schnell
         const { pdfDetail, pdfJahr, pdfKompakt, pdfKonten, pdfTagesnachweis } = await import('../lib/pdf');
-        if (bericht === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, unterschrift);
-        else if (bericht === 'detail') inhalt = pdfDetail(d, v, b, heute, berichtTitel, titel);
+        if (bericht === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, { unterschrift, protokoll });
+        else if (bericht === 'detail') inhalt = pdfDetail(d, v, b, heute, berichtTitel, titel, { protokoll });
         else if (bericht === 'konten') inhalt = pdfKonten(d, v, b, heute, titel);
         else if (bericht === 'jahr') inhalt = pdfJahr(d, jahrVon(v), heute);
         else inhalt = pdfKompakt(d, v, b, heute, berichtTitel, titel);
@@ -180,6 +181,12 @@
     <label class="zeile">
       <span class="l">Mit Unterschriftsfeldern</span>
       <input type="checkbox" class="schalter" id="bericht-unterschrift" bind:checked={unterschrift} />
+    </label>
+  {/if}
+  {#if bericht === 'nachweis' || bericht === 'detail'}
+    <label class="zeile">
+      <span class="l"><span>Änderungsprotokoll einbeziehen<small>wann welche Zeit geändert wurde</small></span></span>
+      <input type="checkbox" class="schalter" id="bericht-protokoll" bind:checked={protokoll} />
     </label>
   {/if}
 </div>

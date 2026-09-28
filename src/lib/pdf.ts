@@ -105,21 +105,37 @@ function tabelle(doc: jsPDF, optionen: Parameters<typeof autoTable>[1]) {
 }
 
 /** Kennzahlen als Kästchenreihe */
-function kaestchen(doc: jsPDF, y: number, werte: [string, string][]): number {
-  const w = BREITE / werte.length;
+/** Text in eine Breite einpassen: erst kleiner, dann mit „…“ kürzen. */
+function eingepasst(doc: jsPDF, text: string, breite: number, groesse: number, mindest = 7): string {
+  let g = groesse;
+  doc.setFontSize(g);
+  while (doc.getTextWidth(text) > breite && g > mindest) {
+    g -= 0.5;
+    doc.setFontSize(g);
+  }
+  if (doc.getTextWidth(text) <= breite) return text;
+  let kurz = text;
+  while (kurz.length > 1 && doc.getTextWidth(kurz + '…') > breite) kurz = kurz.slice(0, -1);
+  return kurz.trimEnd() + '…';
+}
+
+/** Kennzahlen als Kästchenreihe; `gewichte` verteilt die Breite (z. B. breiter für lange Texte). */
+function kaestchen(doc: jsPDF, y: number, werte: [string, string][], gewichte?: number[]): number {
+  const g = gewichte ?? werte.map(() => 1);
+  const summe = g.reduce((a, b) => a + b, 0);
   doc.setDrawColor(218, 219, 213);
   doc.setLineWidth(0.25);
   doc.roundedRect(RAND, y, BREITE, 13, 1.5, 1.5, 'S');
+  let x = RAND;
   werte.forEach(([l, v], i) => {
-    const x = RAND + i * w;
+    const w = (BREITE * g[i]) / summe;
     if (i) doc.line(x, y, x, y + 13);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
     doc.setTextColor(...GRAU);
-    doc.text(t(l.toUpperCase()), x + 2.5, y + 4.6);
-    doc.setFontSize(11);
+    doc.text(eingepasst(doc, t(l.toUpperCase()), w - 5, 6.5, 5.5), x + 2.5, y + 4.6);
     doc.setTextColor(...NACHT);
-    doc.text(t(v), x + 2.5, y + 10.4);
+    doc.text(eingepasst(doc, t(v), w - 5, 11), x + 2.5, y + 10.4);
+    x += w;
   });
   return y + 13;
 }
@@ -174,7 +190,13 @@ function summenKaestchen(doc: jsPDF, y: number, s: Summen, mitVortrag = true): n
 
 // ─── Tagesnachweis ───────────────────────────────────────────────────────
 
-export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum, unterschrift: boolean): Blob {
+export interface Optionen {
+  unterschrift?: boolean;
+  /** Änderungsprotokoll in den Bericht aufnehmen */
+  protokoll?: boolean;
+}
+
+export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum, { unterschrift = false, protokoll = false }: Optionen = {}): Blob {
   const { zeilen } = berichtTage(daten, datum, datum, heute);
   const z = zeilen[0];
   const tag = z.tag;
@@ -185,7 +207,7 @@ export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum
     ['Anlass', tag?.anlass ?? '-'],
     ['Tagesart', tag ? ARTEN[tag.art] : 'Arbeit'],
     ['Sollzeit', hm(z.soll)]
-  ]);
+  ], [1, 1.9, 0.8, 0.7]);
 
   const s = stempelungen(tag);
   tabelle(doc, {
@@ -229,7 +251,7 @@ export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum
 
   const quellen = new Set(s.map((x) => x.quelle));
   y = absatz(doc, y, quellen.size ? [...quellen].join(', ') + '.' : '-', 'Erfassung:');
-  if (tag?.protokoll.length) {
+  if (protokoll && tag?.protokoll.length) {
     y = zwischentitel(doc, y + 3, 'Änderungen');
     tabelle(doc, {
       startY: y + 1,
@@ -307,7 +329,7 @@ function zeitBuchungen(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, 
 
 // ─── Detailliert ─────────────────────────────────────────────────────────
 
-export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, titel: string, unter: string): Blob {
+export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, titel: string, unter: string, { protokoll = false }: Optionen = {}): Blob {
   const { zeilen, summen } = berichtTage(daten, von, bis, heute);
   const doc = neuesDokument(daten, { titel, unter });
   const sichtbar = zeilen.filter((z) => z.datum <= heute && (z.ist !== null || z.status !== 'frei'));
@@ -345,7 +367,19 @@ export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Da
       y = absatz(doc, y, `${z.fenster!.imFenster} von 30 Min Pause im Fenster, längste Pause ${z.fenster!.laengste} Min. Zuschlag ${hm(-z.zuschlag, true)}.`, `${kurzDatum(z.datum)} ${z.wt}:`);
     }
   }
-  zeitBuchungen(doc, daten, von, bis, heute, y + 2);
+  y = zeitBuchungen(doc, daten, von, bis, heute, y + 2);
+  if (protokoll) {
+    const aenderungen = sichtbar.flatMap((z) => (z.tag?.protokoll ?? []).map((p) => [`${kurzDatum(z.datum)} ${z.wt}`, new Date(p.am).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), p.feld, p.alt ?? '-', p.neu ?? '-']));
+    if (aenderungen.length) {
+      y = zwischentitel(doc, y + 2, 'Änderungen');
+      tabelle(doc, {
+        startY: y + 1,
+        head: [['Tag', 'Zeitpunkt', 'Feld', 'Alt', 'Neu']],
+        body: aenderungen.map((r) => r.map((x) => t(x))),
+        styles: { fontSize: 7.5, textColor: NACHT, cellPadding: 1.1, lineColor: [218, 219, 213], lineWidth: { bottom: 0.15 } }
+      });
+    }
+  }
   return abschliessen(doc, `K = Kommen · G = Gehen · Erstellt am ${new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`);
 }
 
