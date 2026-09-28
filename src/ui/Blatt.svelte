@@ -25,8 +25,12 @@
     transform: translateX(-50%);
     bottom: 0;
     width: min(560px, 100%);
-    max-height: 90vh;
+    max-height: 92vh;
+    max-height: 92dvh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     background: var(--bg);
     border-radius: 26px 26px 0 0;
     padding: 8px 16px calc(var(--unten) + 16px);
@@ -34,6 +38,10 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+  /* Inhalte nie zusammenstauchen – ist das Blatt zu hoch, wird es scrollbar */
+  .blatt > :global(*) {
+    flex-shrink: 0;
   }
   .griff {
     width: 38px;

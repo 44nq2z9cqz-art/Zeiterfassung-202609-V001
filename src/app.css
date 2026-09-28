@@ -101,6 +101,7 @@ label:focus-within {
   margin: 0 0 -8px;
 }
 .gruppe {
+  flex-shrink: 0;
   background: var(--group);
   border-radius: 14px;
   overflow: hidden;
