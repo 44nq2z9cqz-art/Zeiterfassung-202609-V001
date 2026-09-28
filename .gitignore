@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.log
+.DS_Store
+
+# Persönliche Daten – niemals ins öffentliche Repository
+privat/
+*.backup.json
+zeiterfassung-backup-*.json

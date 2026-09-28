@@ -1,0 +1,276 @@
+/* Designsystem – Konzept E: Night Shift & Laser Lemon, hell, nah an iOS */
+:root {
+  --night: #10131a;
+  --lemon: #efff4f;
+  --bg: #f4f5f0;
+  --group: #ffffff;
+  --fill: #e9eae4;
+  --label: #10131a;
+  --label2: #6b6f78;
+  --label3: #9a9ea6;
+  --sep: #e3e4de;
+  --plus: #1f7a36;
+  --minus: #c8322b;
+  --night-2: #a9aeb8;
+  --lemon-dim: rgba(239, 255, 79, 0.18);
+
+  --oben: env(safe-area-inset-top, 0px);
+  --unten: env(safe-area-inset-bottom, 0px);
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--label);
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:focus-visible,
+label:focus-within {
+  outline: 2px solid var(--night);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Großer Titel */
+.titel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+.titel small {
+  display: block;
+  color: var(--label2);
+  font-size: 15px;
+  font-weight: 500;
+}
+.titel h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* Gruppierte Listen */
+.abschnitt {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--label2);
+  padding: 0 16px;
+  margin: 0 0 -8px;
+}
+.gruppe {
+  background: var(--group);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 16px;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  text-align: left;
+}
+.zeile + .zeile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--sep);
+}
+.zeile .l {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.zeile .l small {
+  display: block;
+  color: var(--label2);
+  font-size: 13px;
+}
+.zeile .w {
+  color: var(--label2);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.zeile .w.stark {
+  color: var(--label);
+  font-weight: 600;
+}
+.pfeil {
+  color: var(--label3);
+  font-size: 20px;
+  line-height: 1;
+}
+.zeile.aktion .l {
+  font-weight: 600;
+}
+
+/* Dunkle Kachel */
+.kachel {
+  background: var(--night);
+  color: #fff;
+  border-radius: 22px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kachel .etikett {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--night-2);
+}
+.kachel .gross {
+  font-size: 46px;
+  line-height: 1.02;
+  color: var(--lemon);
+}
+.kachel .unter {
+  font-size: 14px;
+  color: var(--night-2);
+  font-variant-numeric: tabular-nums;
+}
+.kachel .unter b {
+  color: #fff;
+  font-weight: 600;
+}
+.balken {
+  height: 7px;
+  border-radius: 99px;
+  background: var(--lemon-dim);
+  overflow: hidden;
+}
+.balken i {
+  display: block;
+  height: 100%;
+  background: var(--lemon);
+  border-radius: 99px;
+}
+
+/* Knöpfe */
+.knopf {
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  padding: 15px 12px;
+  font-weight: 600;
+  font-size: 17px;
+  text-align: center;
+}
+.knopf.haupt {
+  background: var(--night);
+  color: var(--lemon);
+}
+.knopf.neben {
+  background: var(--fill);
+  color: var(--label);
+}
+.knopf:disabled {
+  opacity: 0.45;
+}
+
+/* Segmente */
+.segmente {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  background: var(--fill);
+  border-radius: 9px;
+  padding: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.segmente button {
+  padding: 7px 4px;
+  border-radius: 7px;
+  color: var(--label2);
+}
+.segmente button[aria-pressed='true'] {
+  background: var(--group);
+  color: var(--label);
+  box-shadow: 0 1px 3px rgba(16, 19, 26, 0.12);
+}
+
+.plus {
+  color: var(--plus);
+}
+.minus {
+  color: var(--minus);
+}
+.leise {
+  color: var(--label2);
+}
+.hinweistext {
+  font-size: 13px;
+  color: var(--label2);
+  line-height: 1.45;
+  padding: 0 16px;
+  margin: 0;
+}
+.plakette {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--night);
+  color: var(--lemon);
+  display: inline-grid;
+  place-items: center;
+  font: 800 11.5px/1 -apple-system, system-ui, sans-serif;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
