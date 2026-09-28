@@ -118,6 +118,8 @@ export interface Zeitraumergebnis {
   frei: number;
   /** Tage, die schon so eingetragen sind */
   bereits: number;
+  /** Tage mit anderer Tagesart (Gleittag, Krank bzw. Urlaub), die unverändert bleiben */
+  andereArt: Datum[];
   /** Nur beim Entfernen: Tage, die danach leer sind und gelöscht werden */
   geloescht: Datum[];
 }
@@ -133,7 +135,7 @@ export function zeitraumSetzen(
   art: 'urlaub' | 'krank' | 'entfernen',
   am: string
 ): Zeitraumergebnis {
-  const ergebnis: Zeitraumergebnis = { geaendert: [], uebersprungen: [], frei: 0, bereits: 0, geloescht: [] };
+  const ergebnis: Zeitraumergebnis = { geaendert: [], uebersprungen: [], frei: 0, bereits: 0, andereArt: [], geloescht: [] };
   if (art === 'entfernen') {
     for (const d of tageVonBis(von, bis)) {
       const vorhanden = tage.get(d);
@@ -156,6 +158,11 @@ export function zeitraumSetzen(
     }
     if (vorhanden?.art === art) {
       ergebnis.bereits++;
+      continue;
+    }
+    // Eine andere Tagesart (z. B. Gleittag) wird nie stillschweigend überschrieben
+    if (vorhanden && vorhanden.art !== 'arbeit') {
+      ergebnis.andereArt.push(vorhanden.datum);
       continue;
     }
     ergebnis.geaendert.push(setzeArt(vorhanden ?? leererTag(d), art, am));

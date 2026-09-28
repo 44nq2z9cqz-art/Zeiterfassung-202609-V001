@@ -70,6 +70,9 @@
           <div class="zeile"><span class="l"><b>Wird eingetragen</b></span><span class="w stark">{anzahl} {wort}</span></div>
           {#if vorschau.bereits}<div class="zeile"><span class="l leise">Schon eingetragen</span><span class="w">{vorschau.bereits}</span></div>{/if}
           {#if vorschau.frei}<div class="zeile"><span class="l leise">Wochenenden/Feiertage, zählen nicht</span><span class="w">{vorschau.frei}</span></div>{/if}
+          {#if vorschau.andereArt.length}
+            <div class="zeile"><span class="l leise"><span>Andere Tagesart, bleiben unverändert<small>{kurzListe(vorschau.andereArt)}</small></span></span><span class="w">{vorschau.andereArt.length}</span></div>
+          {/if}
           {#if vorschau.uebersprungen.length}
             <div class="zeile"><span class="l leise"><span>Mit Arbeitszeit, bleiben unverändert<small>{kurzListe(vorschau.uebersprungen)}</small></span></span><span class="w">{vorschau.uebersprungen.length}</span></div>
           {/if}

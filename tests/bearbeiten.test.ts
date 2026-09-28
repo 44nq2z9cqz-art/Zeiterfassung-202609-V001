@@ -108,6 +108,15 @@ describe('C Urlaub für einen Zeitraum', () => {
   });
 });
 
+describe('C Zeitraum überschreibt keine andere Tagesart', () => {
+  it('Gleittag 22.07. bleibt Gleittag', () => {
+    const tage = new Map([['2026-07-22', tagesart('2026-07-22', 'gleittag')]]);
+    const r = zeitraumSetzen(tage, '2026-07-20', '2026-07-24', 'urlaub', AM);
+    expect(r.andereArt).toEqual(['2026-07-22']);
+    expect(r.geaendert.map((t) => t.datum)).toEqual(['2026-07-20', '2026-07-21', '2026-07-23', '2026-07-24']);
+  });
+});
+
 describe('C Zeitraum wieder entfernen', () => {
   it('nimmt versehentlich eingetragenen Urlaub zurück und löscht leere Tage', () => {
     const falsch = zeitraumSetzen(new Map(), '2026-01-02', '2026-02-11', 'urlaub', AM).geaendert;
