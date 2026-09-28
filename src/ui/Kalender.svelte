@@ -56,10 +56,12 @@
   const tag = $derived(speicher.tage.get(gewaehlt));
 
   function kurztext(z: (typeof zeilen)[number]): { text: string; klasse: string } {
+    // Feiertag ohne Arbeit: „Feiertag“ statt leer (an Feiertagen mit Arbeit zählt der Saldo)
+    if (z.feiertag && z.status !== 'arbeit') return { text: 'Feiertag', klasse: 'art' };
     switch (z.status) {
       case 'urlaub': return { text: z.urlaubstage ? 'Urlaub' : '', klasse: 'art' };
       case 'krank': return { text: 'Krank', klasse: 'art' };
-      case 'gleittag': return { text: dauer(z.saldo, true), klasse: 'minus' };
+      case 'gleittag': return { text: 'Gleittag', klasse: 'art' };
       case 'ohneEintrag':
       case 'unvollstaendig': return { text: dauer(z.saldo, true), klasse: 'minus' };
       case 'arbeit': return { text: dauer(z.saldo, true), klasse: z.saldo < 0 ? 'minus' : z.saldo > 0 ? 'plus' : 'leise' };
