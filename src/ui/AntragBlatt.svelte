@@ -97,13 +97,16 @@
     schliessen();
   }
 
-  // Kalender-Export: Die Datei direkt öffnen, damit iOS die Termin-Vorschau mit „Hinzufügen“ zeigt.
-  // Muss ohne await im Tipp-Ereignis passieren, sonst blockiert der Browser das neue Fenster.
+  // Kalender-Export: Im normalen Safari die Datei direkt öffnen (Termin-Vorschau mit „Hinzufügen“).
+  // Als Home-Bildschirm-App kann das eigene Browserfenster die Datei nicht lesen und bleibt hängen –
+  // dort geht es über das Teilen-Menü. Ohne await im Tipp-Ereignis, sonst blockiert der Browser das Fenster.
+  const alsApp = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
   const kalenderDatei = () => {
     const x = baue();
     return new File([icsFuerAntrag(x)], `urlaub-${x.von}.ics`, { type: 'text/calendar' });
   };
   function kalenderOeffnen() {
+    if (alsApp()) return kalenderTeilen();
     const url = URL.createObjectURL(kalenderDatei());
     const fenster = window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -168,7 +171,6 @@
     {#if a0 && gestrichen}<button type="button" class="knopf neben" onclick={wiederaufnehmen}>Streichung aufheben</button>{/if}
     {#if a0 && !gestrichen && !istPlan}
       <button type="button" class="knopf neben" onclick={kalenderOeffnen}>Kalender-Export</button>
-      <button type="button" class="textknopf" onclick={kalenderTeilen}>Kalenderdatei teilen oder in Dateien sichern</button>
     {/if}
   {/if}
 </Blatt>
@@ -214,11 +216,6 @@
   }
   .rot {
     color: var(--minus);
-  }
-  .textknopf {
-    color: var(--label2);
-    font-size: 14px;
-    padding: 2px 4px 4px;
   }
   .rot-voll {
     background: var(--minus);
