@@ -1,5 +1,7 @@
 // Zustand der App im Speicher, geladen aus IndexedDB.
+import { erstelleBackup } from '../core/backup';
 import { standardEinstellungen } from '../core/einstellungen';
+import { type Sicherungsgrund, taeglichFaellig, ueberzaehlig } from '../core/sicherungen';
 import type { Pruefbericht } from '../core/import-altapp';
 import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
 import { antraegeAusKalender, type Kalenderaenderung } from '../core/urlaubsantrag';
@@ -45,6 +47,7 @@ class Speicher {
       }
       await this.antraegeUebernehmen();
       this.geladen = true;
+      await this.taeglichSichern();
     } catch (e) {
       this.fehler = e instanceof Error ? e.message : String(e);
     }
@@ -116,6 +119,42 @@ class Speicher {
     this.tage = tage;
   }
 
+  /** Einmal am Tag beim Öffnen einen Schnappschuss aller Daten in der App ablegen. */
+  private async taeglichSichern() {
+    try {
+      if (!this.hatDaten) return;
+      // Nur die Sicherungen von heute laden – die übrigen sind groß und werden hier nicht gebraucht
+      const vonHeute = await db.sicherungen.where('datum').equals(heute()).toArray();
+      if (taeglichFaellig(vonHeute, heute())) await this.sicherungAnlegen('taeglich');
+    } catch (e) {
+      // Eine fehlgeschlagene Sicherung darf den Start der App nicht verhindern
+      console.warn('Automatische Sicherung fehlgeschlagen', e);
+    }
+  }
+
+  /** Schnappschuss der aktuellen Daten anlegen und alte Sicherungen aufräumen. */
+  async sicherungAnlegen(grund: Sicherungsgrund) {
+    const jetzt = new Date();
+    const backup = $state.snapshot(erstelleBackup(this.daten, __APP_VERSION__, jetzt));
+    await db.sicherungen.put({
+      id: jetzt.toISOString(),
+      datum: heute(jetzt),
+      grund,
+      tage: this.tage.size,
+      buchungen: this.buchungen.length,
+      antraege: this.antraege.length,
+      backup
+    });
+    const alle = await db.sicherungen.toArray();
+    const weg = ueberzaehlig(alle);
+    if (weg.length) await db.sicherungen.bulkDelete(weg);
+  }
+
+  /** Alle Sicherungen, neueste zuerst. */
+  async sicherungen() {
+    return (await db.sicherungen.toArray()).sort((a, b) => b.id.localeCompare(a.id));
+  }
+
   /** iOS bitten, die Daten dauerhaft zu behalten (Konzept F). */
   private async speicherSichern() {
     try {
@@ -181,15 +220,17 @@ class Speicher {
   async importieren(daten: Datenbestand, bericht: Pruefbericht) {
     // Urlaub aus der alten App wird als genehmigte Anträge übernommen
     const mitAntraegen = { ...daten, antraege: antraegeAusKalender(daten, new Date().toISOString()) };
-    await this.ersetzeAlles(mitAntraegen, { schluessel: META.letzterImport, wert: { am: new Date().toISOString(), bericht } });
+    await this.ersetzeAlles(mitAntraegen, 'vor-import', { schluessel: META.letzterImport, wert: { am: new Date().toISOString(), bericht } });
   }
 
   /** Stellt ein Backup wieder her. Vorher wird eine Sicherheitskopie angelegt. */
   async wiederherstellen(daten: Datenbestand) {
-    await this.ersetzeAlles(daten, { schluessel: META.letzteWiederherstellung, wert: new Date().toISOString() });
+    await this.ersetzeAlles(daten, 'vor-wiederherstellung', { schluessel: META.letzteWiederherstellung, wert: new Date().toISOString() });
   }
 
-  private async ersetzeAlles(daten: Datenbestand, vermerk: { schluessel: string; wert: unknown }) {
+  private async ersetzeAlles(daten: Datenbestand, grund: Sicherungsgrund, vermerk: { schluessel: string; wert: unknown }) {
+    // Der bisherige Stand bleibt als Sicherung in der Liste und lässt sich zurückholen
+    if (this.hatDaten) await this.sicherungAnlegen(grund);
     const kopie = await exportiereAlles();
     await db.transaction('rw', [db.tage, db.buchungen, db.meta, db.antraege], async () => {
       await db.meta.put({ schluessel: META.sicherungVorImport, wert: kopie });

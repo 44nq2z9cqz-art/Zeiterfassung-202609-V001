@@ -1,7 +1,7 @@
 # Zeiterfassung
 
 Persönliche Arbeitszeiterfassung als Web-App für das iPhone: Stempeln mit Pausen, Zeitkonto mit Sockel,
-Urlaubskonto, Pausenregel des Arbeitgebers und Berichte als PDF und CSV. Die App läuft offline und speichert
+Urlaubskonto mit elektronischem Urlaubsantrag, Pausenregel des Arbeitgebers und Berichte als PDF und CSV. Die App läuft offline und speichert
 alle Daten nur auf dem Gerät.
 
 **App:** https://44nq2z9cqz-art.github.io/Zeiterfassung-202609-V001/
@@ -19,7 +19,7 @@ Alle fachlichen Regeln stehen in [docs/KONZEPT.md](docs/KONZEPT.md). Jede Regel 
 | M4 | Konten und Buchungen | ✅ |
 | M5 | Berichte als PDF und CSV | ✅ |
 | M6 | Einstellungen und Backup | ✅ |
-| M7 | Feinschliff und Umstieg | – |
+| M7 | Feinschliff und Umstieg, Urlaubsantrag, automatische Sicherungen | ✅ |
 
 ## Entwicklung
 

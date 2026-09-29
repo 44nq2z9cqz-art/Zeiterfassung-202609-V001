@@ -9,10 +9,13 @@
   import EinstellungBlatt, { type Art } from './EinstellungBlatt.svelte';
   import ImportAltApp from './ImportAltApp.svelte';
   import Wiederherstellen from './Wiederherstellen.svelte';
+  import Sicherungen from './Sicherungen.svelte';
+  import type { Sicherung } from '../core/sicherungen';
 
   let { schliessen, zuKonten, heute }: { schliessen: () => void; zuKonten: () => void; heute: Datum } = $props();
 
-  let ansicht = $state<'haupt' | 'import' | 'wiederherstellen'>('haupt');
+  let ansicht = $state<'haupt' | 'import' | 'wiederherstellen' | 'sicherungen'>('haupt');
+  let gewaehlt = $state.raw<Sicherung | undefined>(undefined);
   let blatt = $state<Art | null>(null);
   let suche = $state<'bereit' | 'laeuft' | 'fertig'>('bereit');
   let backupStatus = $state<string | null>(null);
@@ -71,7 +74,11 @@
     {#if ansicht === 'import'}
       <ImportAltApp zurueck={() => (ansicht = 'haupt')} fertig={zuKonten} {heute} />
     {:else if ansicht === 'wiederherstellen'}
-      <Wiederherstellen zurueck={() => (ansicht = 'haupt')} fertig={zuKonten} {heute} />
+      {#key gewaehlt}
+        <Wiederherstellen zurueck={() => (ansicht = gewaehlt ? 'sicherungen' : 'haupt')} fertig={zuKonten} {heute} sicherung={gewaehlt} />
+      {/key}
+    {:else if ansicht === 'sicherungen'}
+      <Sicherungen zurueck={() => (ansicht = 'haupt')} waehlen={(s) => ((gewaehlt = s), (ansicht = 'wiederherstellen'))} />
     {:else}
       <div class="leiste">
         <span></span>
@@ -125,8 +132,11 @@
           <span class="l"><span>Backup sichern<small>letztes Backup: {backupText}</small></span></span>
           <span class="w">{backupStatus ?? ''} <span class="pfeil">›</span></span>
         </button>
-        <button type="button" class="zeile aktion" onclick={() => (ansicht = 'wiederherstellen')}>
+        <button type="button" class="zeile aktion" onclick={() => ((gewaehlt = undefined), (ansicht = 'wiederherstellen'))}>
           <span class="l">Backup wiederherstellen</span><span class="pfeil">›</span>
+        </button>
+        <button type="button" class="zeile aktion" onclick={() => (ansicht = 'sicherungen')}>
+          <span class="l"><span>Automatische Sicherungen<small>täglich in der App, die letzten 14 Tage</small></span></span><span class="pfeil">›</span>
         </button>
         <button type="button" class="zeile aktion" onclick={() => (ansicht = 'import')}>
           <span class="l"><span>Daten der alten App importieren<small>Datensicherung „Zeiterfassung Pro“</small></span></span>

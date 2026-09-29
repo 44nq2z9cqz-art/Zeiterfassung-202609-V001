@@ -1,15 +1,29 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { type Pruefergebnis, pruefeBackup } from '../core/backup';
+  import { GRUND_TEXT, type Sicherung } from '../core/sicherungen';
   import { zeitkontoSaldo } from '../core/konten';
   import { type Datum, datumDE, dauer, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
 
-  let { zurueck, fertig, heute }: { zurueck: () => void; fertig: () => void; heute: Datum } = $props();
+  // Mit `sicherung`: eine automatische Sicherung aus der App statt einer Datei
+  let { zurueck, fertig, heute, sicherung }: { zurueck: () => void; fertig: () => void; heute: Datum; sicherung?: Sicherung } = $props();
 
   let pruefung = $state.raw<Pruefergebnis | null>(null);
   let schritt = $state<'datei' | 'vorschau' | 'laeuft' | 'fertig'>('datei');
   let fehler = $state<string | null>(null);
   let dateiname = $state('');
+
+  const s0 = untrack(() => sicherung);
+  if (s0) {
+    const r = pruefeBackup(s0.backup);
+    if (r.fehler) fehler = r.fehler;
+    else {
+      pruefung = r;
+      schritt = 'vorschau';
+      dateiname = `Sicherung ${GRUND_TEXT[s0.grund]}`;
+    }
+  }
 
   async function dateiGewaehlt(ereignis: Event) {
     const datei = (ereignis.currentTarget as HTMLInputElement).files?.[0];
@@ -47,8 +61,8 @@
   }
 </script>
 
-<div class="leiste"><button type="button" class="zurueck" onclick={zurueck}>‹ Einstellungen</button></div>
-<header class="titel"><div><small>Daten</small><h1>Backup wiederherstellen</h1></div></header>
+<div class="leiste"><button type="button" class="zurueck" onclick={zurueck}>‹ {s0 ? 'Sicherungen' : 'Einstellungen'}</button></div>
+<header class="titel"><div><small>Daten</small><h1>{s0 ? 'Sicherung wiederherstellen' : 'Backup wiederherstellen'}</h1></div></header>
 
 {#if schritt === 'datei'}
   <p class="hinweistext">Wähle eine Backup-Datei dieser App, z. B. aus iCloud Drive. Vor dem Wiederherstellen siehst du, was die Datei enthält.</p>
@@ -65,7 +79,7 @@
 {:else if v}
   <h2 class="abschnitt">Backup</h2>
   <div class="gruppe">
-    <div class="zeile"><span class="l">Datei</span><span class="w klein">{dateiname}</span></div>
+    <div class="zeile"><span class="l">{s0 ? 'Art' : 'Datei'}</span><span class="w klein">{dateiname}</span></div>
     {#if v.erstelltAm}<div class="zeile"><span class="l">Erstellt am</span><span class="w">{new Date(v.erstelltAm).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>{/if}
     {#if v.von && v.bis}<div class="zeile"><span class="l">Zeitraum</span><span class="w">{datumDE(v.von)} – {datumDE(v.bis)}</span></div>{/if}
     <div class="zeile"><span class="l">Tage / davon gearbeitet</span><span class="w stark">{v.tage} / {v.arbeitstage}</span></div>
@@ -78,11 +92,15 @@
     <div class="zeile"><span class="l"><b>Nach Wiederherstellen</b></span><span class="w stark num">{dauer(saldoBackup, true)}</span></div>
   </div>
 
-  <p class="warnung">Alle Daten in der App werden durch das Backup ersetzt. Vorher legt die App automatisch eine Sicherheitskopie an.</p>
+  <p class="warnung">Alle Daten in der App werden durch {s0 ? 'diese Sicherung' : 'das Backup'} ersetzt. Der jetzige Stand wird vorher automatisch gesichert und steht danach in der Liste der Sicherungen.</p>
   {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
   <div class="knoepfe">
     <button type="button" class="knopf haupt" disabled={schritt === 'laeuft'} onclick={herstellen}>{schritt === 'laeuft' ? 'Wird wiederhergestellt …' : 'Ersetzen und wiederherstellen'}</button>
-    <button type="button" class="knopf neben" onclick={() => ((schritt = 'datei'), (pruefung = null))}>Andere Datei wählen</button>
+    {#if s0}
+      <button type="button" class="knopf neben" onclick={zurueck}>Andere Sicherung wählen</button>
+    {:else}
+      <button type="button" class="knopf neben" onclick={() => ((schritt = 'datei'), (pruefung = null))}>Andere Datei wählen</button>
+    {/if}
   </div>
 {/if}
 

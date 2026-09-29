@@ -136,6 +136,24 @@ Ab diesem Stichtag stimmen beide Salden überein. Alle Abgleiche bleiben im Kont
 Beispiel: Urlaub Mo 21.12.2026 – Mo 04.01.2027 ergibt Mo 21. (1) + Di 22. (1) + Mi 23. (1) + Do 24. (0,5) + Mo 28. (1) + Di 29. (1) + Mi 30. (1) + Do 31. (0,5) + Mo 04.01. (1) = **8 Tage**.
 Nicht mitgezählt werden: Fr 25.12. (Feiertag), Sa/So 26./27.12., Fr 01.01. (Neujahr) und Sa/So 02./03.01.
 
+### B6 Urlaubsantrag ✅ (v0.8)
+
+Unter Konten → „Urlaubsantrag“, nachgebildet dem Urlaubsschein der Firma.
+
+| Status | Bedeutung | Rest | Kalender | PDF | Entfernen |
+|---|---|---|---|---|---|
+| geplant | Simulation, noch nicht beantragt | zählt | nein | nein | löschen, spurlos |
+| beantragt | über „Beantragen und PDF“ | zählt | nein | ja | löschen, spurlos |
+| genehmigt | Schalter „Genehmigt“, Kürzel aus den Einstellungen (CHE), Datum | zählt | ja, als Urlaub | ja | nur streichen |
+| gestrichen | bleibt durchgestrichen sichtbar, mit Datum und Grund | zählt nicht | entfernt | ja | Streichung aufheben |
+
+- Ein Antrag liegt in einem Jahr. Über den Jahreswechsel werden zwei Anträge angelegt. Anträge späterer Jahre stehen in einem eigenen Abschnitt und zählen erst dort.
+- Anträge dürfen sich nicht überschneiden (gestrichene ausgenommen).
+- **PDF (A4 Hochformat):** Anspruch als Kästchen (Resturlaub, Jahresurlaub, Sonderurlaub, Gesamt), Tabelle mit Zeitraum (darunter Sonstiges), Anspruch, beantragt, Rest,
+  dann je zur Hälfte die Felder für Vertretung und Genehmigung mit dem Label „Datum“. Darunter Antragsdatum (Tag der Ausgabe) und Unterschrift mit Namen, danach der Kontoverlauf Urlaub.
+- Beim ersten Start mit v0.8 wurde vorhandener Urlaub aus dem Kalender einmalig als genehmigte Anträge übernommen.
+- Verworfen: Kalender-Export als ics-Datei. Eine Home-Bildschirm-App kann die Datei auf dem iPhone nicht direkt an den Kalender übergeben.
+
 ### B5 Tagesarten
 
 | Tagesart | Soll | Wirkung auf das Zeitkonto | Wirkung auf den Urlaub |
@@ -241,6 +259,9 @@ und im Detailbericht mit Begründung erklärt.
   Die Backup-Erinnerung bleibt trotzdem die wichtigste Absicherung.
 - **Backup:** JSON-Datei mit Schema-Version, Speichern über das Teilen-Menü in iCloud Drive.
   Beim Wiederherstellen zeigt die App zuerst eine Vorschau und legt vor dem Überschreiben eine Sicherheitskopie an.
+- ✅ **Automatische Sicherungen (v0.9):** Beim ersten Öffnen jedes Tages legt die App einen Schnappschuss aller Daten in der eigenen Datenbank ab
+  und behält die letzten 14. Dazu kommt je einer vor jedem Wiederherstellen oder Import (die letzten 5). Unter Einstellungen → „Automatische Sicherungen“
+  lässt sich jeder Stand mit Vorschau wiederherstellen. Sie schützen vor Bedienfehlern, nicht vor Geräteverlust – dafür bleibt das Backup in iCloud Drive.
 
 **PDF und CSV**
 - Die PDFs werden direkt auf dem Gerät erzeugt (A4 Hochformat) und funktionieren damit auch offline. Die Weitergabe läuft über das Teilen-Menü.
@@ -274,7 +295,7 @@ Jeder Meilenstein endet mit einer lauffähigen Version, die du auf dem iPhone te
 | M4 | Konten | Zeitkonto, Urlaub, Buchungen, Abgleich mit dem Firmensystem |
 | M5 | Berichte | alle Berichte als PDF und CSV |
 | M6 | Einstellungen und Backup | alle Einstellungen, Backup und Wiederherstellung, Backup-Erinnerung |
-| M7 | Feinschliff und Umstieg | Detailarbeit am Design, Abgleich mit dem Firmensystem, Umstieg von der alten App |
+| M7 | Feinschliff und Umstieg ✅ | Detailarbeit am Design, Abgleich mit dem Firmensystem, Umstieg von der alten App, Urlaubsantrag (B6), automatische Sicherungen |
 
 ## G – Datenübernahme
 
