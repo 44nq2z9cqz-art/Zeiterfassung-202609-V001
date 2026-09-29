@@ -10,6 +10,7 @@
     liveStand,
     pauseBeenden,
     pauseStarten,
+    pausenbalken,
     regelHeute,
     type Zeitpunkt
   } from '../core/stempeln';
@@ -52,7 +53,7 @@
 
   // Pausen mit Live-Ende für die Anzeige
   const pausenListe = $derived(
-    (tag?.pausen ?? []).map((p) => ({ ...p, bis: p.ende ?? lauf.minute })).sort((a, b) => a.beginn - b.beginn)
+    (tag?.pausen ?? []).map((p) => ({ ...p, bis: p.ende ?? lauf.minute })).sort((a, b) => b.beginn - a.beginn)
   );
   const einzelMin = $derived(regel?.mindestEinzel ?? 15);
   const imFenster = (b: number, en: number) => !!regel && Math.min(en, regel.fensterEnde) > Math.max(b, regel.fensterBeginn);
@@ -61,8 +62,9 @@
   const kurz = (m: number) => (m % 60 === 0 ? String(m / 60) : uhrzeit(m));
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  // Pausenfenster als Zeitleiste
+  // Zeitbalken der Pausenregel
   const fenster = $derived(stand?.fenster ?? null);
+  const balken = $derived(regel ? pausenbalken(tag, regel, lauf.minute) : []);
   const fensterLaenge = $derived(regel ? regel.fensterEnde - regel.fensterBeginn : 1);
   const pos = (m: number) => (regel ? Math.max(0, Math.min(100, ((m - regel.fensterBeginn) / fensterLaenge) * 100)) : 0);
   const fensterVorbei = $derived(!!regel && begonnen && (beendet || lauf.minute >= regel.fensterEnde));
@@ -101,7 +103,7 @@
   function zeige(text: string) {
     meldung = text;
     clearTimeout(meldungTimer);
-    meldungTimer = setTimeout(() => (meldung = null), 2500);
+    meldungTimer = setTimeout(() => (meldung = null), 4000);
   }
 
   function zeitpunkt(): Zeitpunkt {
@@ -193,34 +195,30 @@
   </section>
 
   {#if regel}
-    <section class="gruppe" aria-label="Pausenfenster">
+    <section class="gruppe" aria-label="Pausenregel">
       <div class="fenster">
         <div class="kopf">
-          <b>Pausenfenster {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr</b>
+          <b>Pausenregel {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr</b>
           <span>{fenster?.imFenster ?? 0} von {regel.mindestGesamt} Min</span>
         </div>
-        <div class="leiste" aria-hidden="true">
-          {#each pausenListe as p (p.id)}
-            {#if imFenster(p.beginn, p.bis)}
-              <div class="p" style="left:{pos(p.beginn)}%;width:{Math.max(1, pos(p.bis) - pos(p.beginn))}%"></div>
-            {/if}
-          {/each}
-          {#if begonnen && !fensterVorbei && !greiftNicht && fenster && fenster.fehlendGesamt > 0 && lauf.minute >= regel.fensterBeginn}
-            <div class="bedarf" style="left:{pos(lauf.minute)}%;width:{Math.min(100 - pos(lauf.minute), (fenster.fehlendGesamt / fensterLaenge) * 100)}%"></div>
-          {/if}
+        <div class="balken-wrap" role="img" aria-label="Zeitbalken: gearbeitet, Pausen ab {regel.mindestEinzel} Minuten und kürzere Pausen">
+          <div class="leiste">
+            {#each balken as s (s.von)}
+              <div class={s.art} style="left:{pos(s.von)}%;width:{pos(s.bis) - pos(s.von)}%"></div>
+            {/each}
+          </div>
           {#if !beendet && lauf.minute > regel.fensterBeginn && lauf.minute < regel.fensterEnde}
             <div class="jetzt" style="left:{pos(lauf.minute)}%"></div>
           {/if}
         </div>
         <div class="skala"><span>{uhrzeit(regel.fensterBeginn)}</span><span>{uhrzeit(regel.fensterBeginn + 60)}</span><span>{uhrzeit(regel.fensterBeginn + 120)}</span><span>{uhrzeit(regel.fensterEnde)}</span></div>
-      </div>
-      <div class="zeile">
-        <span class="l">{@html (fenster?.fehlendEinzel ?? regel.mindestEinzel) === 0 ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}Eine Pause ab {regel.mindestEinzel} Min</span>
-        <span class="w">{fenster?.laengste ?? 0} Min</span>
-      </div>
-      <div class="zeile">
-        <span class="l">{@html (fenster?.fehlendGesamt ?? regel.mindestGesamt) === 0 ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}{regel.mindestGesamt} Min im Fenster</span>
-        <span class="w stark">{(fenster?.fehlendGesamt ?? regel.mindestGesamt) === 0 ? 'erfüllt' : fensterVorbei ? `${fenster?.fehlendGesamt ?? regel.mindestGesamt} Min fehlen` : `noch ${fenster?.fehlendGesamt ?? regel.mindestGesamt} Min`}</span>
+        <div class="bedingungen">
+          <span>{@html (fenster?.fehlendEinzel ?? regel.mindestEinzel) === 0 ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}Pause ab {regel.mindestEinzel} Min</span>
+          <span>
+            {@html (fenster?.fehlendGesamt ?? regel.mindestGesamt) === 0 ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}{regel.mindestGesamt} Min
+            {#if (fenster?.fehlendGesamt ?? regel.mindestGesamt) > 0}· <b>{fensterVorbei ? `${fenster?.fehlendGesamt} Min fehlen` : `noch ${fenster?.fehlendGesamt ?? regel.mindestGesamt} Min`}</b>{/if}
+          </span>
+        </div>
       </div>
       {#if greiftNicht}
         <div class="zeile"><span class="l leise">Heute greift die Regel nicht, weil nach {uhrzeit(regel.fensterBeginn)} gekommen.</span></div>
@@ -231,14 +229,14 @@
   {/if}
 
   {#if pausenListe.length}
-    <h2 class="abschnitt">Pausen heute</h2>
+    <h2 class="abschnitt">Pausen heute · neueste oben</h2>
     <section class="gruppe" aria-label="Pausen heute">
       {#each pausenListe as p (p.id)}
         <div class="zeile">
           <span class="l">
             {@html p.bis - p.beginn >= einzelMin ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}
             {#if p.ende === null}seit {uhrzeit(p.beginn)}{:else}{uhrzeit(p.beginn)} – {uhrzeit(p.ende)}{/if}
-            {#if imFenster(p.beginn, p.bis)}<span class="etikette">Fenster</span>{/if}
+            {#if imFenster(p.beginn, p.bis)}<span class="etikette">Regel</span>{/if}
           </span>
           <span class="w" class:stark={p.ende === null}>
             {#if p.ende === null && pauseSekunden !== null}{mmss(pauseSekunden)} Min{:else}{p.bis - p.beginn} Min{/if}
@@ -357,35 +355,58 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+  .balken-wrap {
+    position: relative;
+  }
   .leiste {
     position: relative;
-    height: 12px;
+    height: 14px;
     border-radius: 99px;
     background: var(--fill);
+    overflow: hidden;
+    /* feine Kontur, damit Lemon auf Hell sichtbar bleibt */
+    box-shadow: inset 0 0 0 1px rgba(16, 19, 26, 0.12);
   }
-  .leiste .p {
+  .leiste > div {
     position: absolute;
     top: 0;
     bottom: 0;
-    border-radius: 99px;
+  }
+  .leiste .arbeit {
+    background: var(--lemon);
+    box-shadow: inset 0 1px 0 rgba(16, 19, 26, 0.12), inset 0 -1px 0 rgba(16, 19, 26, 0.12);
+  }
+  .leiste .pause {
     background: var(--night);
   }
-  .leiste .bedarf {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    border-radius: 99px;
-    background: repeating-linear-gradient(135deg, var(--night) 0 2px, transparent 2px 6px);
-    opacity: 0.45;
+  .leiste .kurz {
+    background: repeating-linear-gradient(135deg, var(--night) 0 2px, #fff 2px 5px);
   }
-  .leiste .jetzt {
+  .jetzt {
     position: absolute;
-    top: -4px;
-    bottom: -4px;
+    top: -3px;
+    bottom: -3px;
     width: 2px;
     margin-left: -1px;
     border-radius: 2px;
     background: var(--night);
+  }
+  .bedingungen {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    padding-top: 2px;
+  }
+  .bedingungen > span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .bedingungen b {
+    font-weight: 600;
   }
   .skala {
     display: flex;
@@ -455,7 +476,7 @@
     padding: 10px 18px;
     font-weight: 600;
     font-size: 15px;
-    z-index: 15;
+    z-index: 55; /* über dem Statusstreifen */
     white-space: nowrap;
     box-shadow: 0 10px 28px -12px rgba(16, 19, 26, 0.5);
   }

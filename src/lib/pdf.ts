@@ -241,10 +241,10 @@ export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum
   if (z.fenster) {
     const f = z.fenster;
     const text = !f.greift
-      ? `Das Pausenfenster ${uhrzeit(regel.fensterBeginn)}-${uhrzeit(regel.fensterEnde)} Uhr war nicht vollständig abgedeckt, die Regel greift nicht.`
+      ? `Der Zeitraum ${uhrzeit(regel.fensterBeginn)}-${uhrzeit(regel.fensterEnde)} Uhr war nicht vollständig abgedeckt, die Regel greift nicht.`
       : f.zuschlag
-        ? `Pausenzeitverletzung: ${f.imFenster} von ${regel.mindestGesamt} Min im Fenster, längste Pause ${f.laengste} Min. Zuschlag ${hm(-f.zuschlag, true)}.`
-        : `erfüllt – ${f.imFenster} von ${regel.mindestGesamt} Min im Fenster, längste Pause ${f.laengste} Min.`;
+        ? `Pausenzeitverletzung: ${f.imFenster} von ${regel.mindestGesamt} Min im Regelzeitraum, längste Pause ${f.laengste} Min. Zuschlag ${hm(-f.zuschlag, true)}.`
+        : `erfüllt – ${f.imFenster} von ${regel.mindestGesamt} Min im Regelzeitraum, längste Pause ${f.laengste} Min.`;
     y = absatz(doc, y, text, `Pausenregel ${uhrzeit(regel.fensterBeginn)}-${uhrzeit(regel.fensterEnde)} Uhr:`);
   }
   if (tag?.kommentar) y = absatz(doc, y, tag.kommentar, 'Kommentar:');
@@ -364,7 +364,7 @@ export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Da
     y = zwischentitel(doc, y + 1, 'Pausenzeitverletzungen');
     y += 4;
     for (const z of verletzungen) {
-      y = absatz(doc, y, `${z.fenster!.imFenster} von 30 Min Pause im Fenster, längste Pause ${z.fenster!.laengste} Min. Zuschlag ${hm(-z.zuschlag, true)}.`, `${kurzDatum(z.datum)} ${z.wt}:`);
+      y = absatz(doc, y, `${z.fenster!.imFenster} von 30 Min Pause im Regelzeitraum, längste Pause ${z.fenster!.laengste} Min. Zuschlag ${hm(-z.zuschlag, true)}.`, `${kurzDatum(z.datum)} ${z.wt}:`);
     }
   }
   y = zeitBuchungen(doc, daten, von, bis, heute, y + 2);

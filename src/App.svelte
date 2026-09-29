@@ -31,6 +31,13 @@
   });
 
   const oeffneEinstellungen = () => (einstellungenOffen = true);
+
+  /** Reiter wechseln und nach oben scrollen – bei erneutem Tippen sanft, wie bei iOS */
+  function reiterWaehlen(id: Reiter) {
+    const gleich = reiter === id;
+    reiter = id;
+    window.scrollTo({ top: 0, behavior: gleich ? 'smooth' : 'instant' });
+  }
 </script>
 
 {#if aktualisierung.verfuegbar}
@@ -39,6 +46,8 @@
     <button type="button" onclick={() => aktualisierung.jetztAktualisieren()}>Aktualisieren</button>
   </div>
 {/if}
+
+<div class="statusband" aria-hidden="true"></div>
 
 <main>
   {#if speicher.fehler}
@@ -58,7 +67,7 @@
 
 <nav class="tabs" aria-label="Bereiche">
   {#each reiterListe as r (r.id)}
-    <button type="button" class:an={reiter === r.id} aria-current={reiter === r.id ? 'page' : undefined} onclick={() => (reiter = r.id)}>
+    <button type="button" class:an={reiter === r.id} aria-current={reiter === r.id ? 'page' : undefined} onclick={() => reiterWaehlen(r.id)}>
       {@html symbole[r.id]}
       <span>{r.titel}</span>
     </button>
@@ -73,7 +82,7 @@
   main {
     max-width: 560px;
     margin: 0 auto;
-    padding: calc(var(--oben) + 12px) 16px calc(var(--unten) + 110px);
+    padding: var(--inhalt-oben) 16px calc(var(--unten) + 110px);
     display: flex;
     flex-direction: column;
     gap: 18px;
@@ -124,7 +133,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: min(528px, calc(100% - 32px));
-    z-index: 30;
+    z-index: 55; /* über dem Statusstreifen */
     display: flex;
     align-items: center;
     justify-content: space-between;

@@ -130,6 +130,38 @@ export function liveStand(datum: Datum, tag: Tag | undefined, e: Einstellungen, 
   return { soll, ist, pausen, fenster, saldo: ist - zuschlag - soll, ohnePause };
 }
 
+export interface Balkenstueck {
+  von: Minuten;
+  bis: Minuten;
+  /** gearbeitet, Pause ab Mindest-Einzelpause, kürzere Pause */
+  art: 'arbeit' | 'pause' | 'kurz';
+}
+
+/**
+ * Zeitbalken der Pausenregel: gearbeitete Zeit und Pausen innerhalb des Regelzeitraums bis `bis`
+ * (Gehen oder jetzt). Maßgeblich für „Pause“ ist die Länge innerhalb des Zeitraums – wie bei der Regel.
+ */
+export function pausenbalken(tag: Tag | undefined, regel: { fensterBeginn: Minuten; fensterEnde: Minuten; mindestEinzel: Minuten }, jetzt: Minuten): Balkenstueck[] {
+  if (!tag || tag.kommen === null) return [];
+  const ende = Math.min(tag.gehen ?? jetzt, regel.fensterEnde);
+  const anfang = Math.max(tag.kommen, regel.fensterBeginn);
+  if (ende <= anfang) return [];
+  const pausen = tag.pausen
+    .map((p) => ({ von: Math.max(p.beginn, anfang), bis: Math.min(p.ende ?? jetzt, ende) }))
+    .filter((p) => p.bis > p.von)
+    .sort((a, b) => a.von - b.von);
+  const stuecke: Balkenstueck[] = [];
+  let pos = anfang;
+  for (const p of pausen) {
+    if (p.von > pos) stuecke.push({ von: pos, bis: p.von, art: 'arbeit' });
+    const von = Math.max(p.von, pos);
+    if (p.bis > von) stuecke.push({ von, bis: p.bis, art: p.bis - p.von >= regel.mindestEinzel ? 'pause' : 'kurz' });
+    pos = Math.max(pos, p.bis);
+  }
+  if (ende > pos) stuecke.push({ von: pos, bis: ende, art: 'arbeit' });
+  return stuecke;
+}
+
 /** Pausenregel, die heute gilt – für die Anzeige des Fensters auch vor dem ersten Stempeln. */
 export function regelHeute(datum: Datum, tag: Tag | undefined, e: Einstellungen) {
   return regelAm(datum, sollMinuten(datum, tag, e), e);

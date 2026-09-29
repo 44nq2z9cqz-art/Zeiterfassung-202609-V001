@@ -23,7 +23,7 @@ export function standardEinstellungen(appStart: Datum): Einstellungen {
     name: '',
     personalnummer: '',
     hinweise: {
-      pausenfenster: { aktiv: true, uhrzeit: 13 * 60 + 15 },
+      pausenfenster: { aktiv: true, uhrzeit: 13 * 60 },
       pauseNach: { aktiv: true, minuten: 5 * 60 + 15 },
       arbeitsende: { aktiv: false, uhrzeit: 18 * 60 + 15 },
       backupNachTagen: 7

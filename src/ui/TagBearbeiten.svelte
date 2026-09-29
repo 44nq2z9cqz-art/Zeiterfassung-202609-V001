@@ -189,11 +189,11 @@
         <div class="gruppe">
           {#if fenster.zuschlag > 0}
             <div class="zeile">
-              <span class="l"><span class="plakette">!</span><span>Pausenzeitverletzung<small>{fenster.imFenster} von 30 Min im Fenster, längste Pause {fenster.laengste} Min</small></span></span>
+              <span class="l"><span class="plakette">!</span><span>Pausenzeitverletzung<small>{fenster.imFenster} von 30 Min im Regelzeitraum, längste Pause {fenster.laengste} Min</small></span></span>
               <span class="w stark">{dauer(-fenster.zuschlag, true)}</span>
             </div>
           {:else}
-            <div class="zeile"><span class="l"><span class="ok">{@html symbole.haken}</span>Pausenregel erfüllt</span><span class="w">{fenster.imFenster} Min im Fenster</span></div>
+            <div class="zeile"><span class="l"><span class="ok">{@html symbole.haken}</span>Pausenregel erfüllt</span><span class="w">{fenster.imFenster} Min im Regelzeitraum</span></div>
           {/if}
         </div>
       {/if}
@@ -275,7 +275,7 @@
   .inhalt {
     max-width: 560px;
     margin: 0 auto;
-    padding: calc(var(--oben) + 10px) 16px calc(var(--unten) + 40px);
+    padding: var(--inhalt-oben) 16px calc(var(--unten) + 40px);
     display: flex;
     flex-direction: column;
     gap: 16px;

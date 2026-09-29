@@ -91,7 +91,7 @@
     if (art === 'pausenregel') {
       const b = parseUhrzeit(regel.beginn);
       const en = parseUhrzeit(regel.ende);
-      if (b === null || en === null || en <= b) return (fehler = 'Das Pausenfenster braucht einen Beginn vor dem Ende.');
+      if (b === null || en === null || en <= b) return (fehler = 'Der Zeitraum der Pausenregel braucht einen Beginn vor dem Ende.');
       if (!(regel.mindestGesamt >= 0) || !(regel.mindestEinzel >= 0)) return (fehler = 'Bitte Minuten als Zahl eingeben.');
       if (regel.mindestEinzel > regel.mindestGesamt) return (fehler = 'Die Mindest-Einzelpause kann nicht länger sein als die Mindestpause gesamt.');
       const wert: Pausenregel = {
@@ -153,8 +153,8 @@
     {:else if art === 'pausenregel'}
       <label class="zeile"><span class="l">Regel aktiv</span><input type="checkbox" class="schalter" id="es-regel-aktiv" bind:checked={regel.aktiv} /></label>
       {#if regel.aktiv}
-        <label class="zeile"><span class="l">Fenster von</span><input class="feld" type="time" id="es-fenster-beginn" bind:value={regel.beginn} /></label>
-        <label class="zeile"><span class="l">Fenster bis</span><input class="feld" type="time" id="es-fenster-ende" bind:value={regel.ende} /></label>
+        <label class="zeile"><span class="l">Zeitraum von</span><input class="feld" type="time" id="es-fenster-beginn" bind:value={regel.beginn} /></label>
+        <label class="zeile"><span class="l">Zeitraum bis</span><input class="feld" type="time" id="es-fenster-ende" bind:value={regel.ende} /></label>
         <label class="zeile"><span class="l">Mindestpause gesamt</span><span class="w"><input class="feld zahl" type="number" inputmode="numeric" min="0" id="es-min-gesamt" bind:value={regel.mindestGesamt} /> Min</span></label>
         <label class="zeile"><span class="l">davon eine Pause ab</span><span class="w"><input class="feld zahl" type="number" inputmode="numeric" min="0" id="es-min-einzel" bind:value={regel.mindestEinzel} /> Min</span></label>
         <div class="zeile">
@@ -167,7 +167,7 @@
         </div>
       {/if}
     {:else if art === 'hinweise'}
-      <label class="zeile"><span class="l"><span>Pausenfenster<small>wenn im Fenster noch Pause fehlt</small></span></span><input type="checkbox" class="schalter" id="h-fenster" bind:checked={hinweise.pausenfenster.aktiv} /></label>
+      <label class="zeile"><span class="l"><span>Pausenregel<small>wenn im Regelzeitraum noch Pause fehlt</small></span></span><input type="checkbox" class="schalter" id="h-fenster" bind:checked={hinweise.pausenfenster.aktiv} /></label>
       {#if hinweise.pausenfenster.aktiv}<label class="zeile"><span class="l leise">ab</span><input class="feld" type="time" id="h-fenster-uhr" bind:value={hinweise.fensterUhr} /></label>{/if}
       <label class="zeile"><span class="l"><span>Pause fällig<small>nach langer Arbeit ohne Pause</small></span></span><input type="checkbox" class="schalter" id="h-pause" bind:checked={hinweise.pauseNach.aktiv} /></label>
       {#if hinweise.pauseNach.aktiv}<div class="zeile"><span class="l leise">nach</span><StundenEingabe id="h-pause-nach" bind:wert={hinweise.pauseNachText} /></div>{/if}

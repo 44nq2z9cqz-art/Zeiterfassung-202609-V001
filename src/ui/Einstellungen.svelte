@@ -39,7 +39,7 @@
   );
   const h = $derived(e.hinweise);
   const hinweisText = $derived(
-    [h.pausenfenster.aktiv ? `Pausenfenster ab ${uhrzeit(h.pausenfenster.uhrzeit)}` : '', h.pauseNach.aktiv ? `Pause nach ${dauer(h.pauseNach.minuten)} h` : '', h.arbeitsende.aktiv ? `Ende ${uhrzeit(h.arbeitsende.uhrzeit)}` : '']
+    [h.pausenfenster.aktiv ? `Pausenregel ab ${uhrzeit(h.pausenfenster.uhrzeit)}` : '', h.pauseNach.aktiv ? `Pause nach ${dauer(h.pauseNach.minuten)} h` : '', h.arbeitsende.aktiv ? `Ende ${uhrzeit(h.arbeitsende.uhrzeit)}` : '']
       .filter(Boolean)
       .join(' · ') || 'aus'
   );
@@ -91,7 +91,7 @@
       <div class="gruppe">
         <button type="button" class="zeile" onclick={() => (blatt = 'pausenregel')}>
           <span class="l">
-            <span>Pausenfenster {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr<small>{regel.aktiv ? `${regel.mindestGesamt} Min, davon eine ab ${regel.mindestEinzel} Min · ${tageText}` : 'ausgeschaltet'}{spaeter(e.pausenregel) ? ` · Änderung ab ${datumDE(spaeter(e.pausenregel)!.ab)}` : ''}</small></span>
+            <span>Pausenregel {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr<small>{regel.aktiv ? `${regel.mindestGesamt} Min, davon eine ab ${regel.mindestEinzel} Min · ${tageText}` : 'ausgeschaltet'}{spaeter(e.pausenregel) ? ` · Änderung ab ${datumDE(spaeter(e.pausenregel)!.ab)}` : ''}</small></span>
           </span>
           <span class="w">{regel.aktiv ? 'aktiv' : 'aus'} <span class="pfeil">›</span></span>
         </button>
@@ -173,7 +173,7 @@
   .inhalt {
     max-width: 560px;
     margin: 0 auto;
-    padding: calc(var(--oben) + 10px) 16px calc(var(--unten) + 40px);
+    padding: var(--inhalt-oben) 16px calc(var(--unten) + 40px);
     display: flex;
     flex-direction: column;
     gap: 18px;

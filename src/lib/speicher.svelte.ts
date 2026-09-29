@@ -58,6 +58,14 @@ class Speicher {
       }
       await schreibeMeta(META.umstellungen, [...erledigt, 'hinweis-1315']);
     }
+    // v0.7: Hinweis zur Pausenregel ab 13:00 (Nutzerwunsch), nur wenn noch der alte Standard eingestellt ist
+    if (!erledigt.includes('hinweis-1300')) {
+      if (neu.hinweise.pausenfenster.uhrzeit === 13 * 60 + 15) {
+        neu = { ...neu, hinweise: { ...neu.hinweise, pausenfenster: { ...neu.hinweise.pausenfenster, uhrzeit: 13 * 60 } } };
+        await schreibeMeta(META.einstellungen, neu);
+      }
+      await schreibeMeta(META.umstellungen, [...((await leseMeta<string[]>(META.umstellungen)) ?? []), 'hinweis-1300']);
+    }
     return neu;
   }
 

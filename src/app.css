@@ -16,6 +16,8 @@
 
   --oben: env(safe-area-inset-top, 0px);
   --unten: env(safe-area-inset-bottom, 0px);
+  /* Abstand des Inhalts nach oben: unter der Statusleiste plus Luft für die iOS-Unschärfe am oberen Rand */
+  --inhalt-oben: calc(var(--oben) + 26px);
 
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
@@ -272,6 +274,20 @@ label:focus-within {
   place-items: center;
   font: 800 11.5px/1 -apple-system, system-ui, sans-serif;
   flex: none;
+}
+
+/* Milchiger Streifen unter der Statusleiste: Inhalt gleitet beim Scrollen darunter weg */
+.statusband {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--oben) + 6px);
+  z-index: 50;
+  pointer-events: none;
+  background: rgba(244, 245, 240, 0.8);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
 }
 
 /* iOS-Schalter */

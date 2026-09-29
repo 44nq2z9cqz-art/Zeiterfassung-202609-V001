@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { standardEinstellungen } from '../src/core/einstellungen';
 import { bewerteTag } from '../src/core/regeln';
-import { fortsetzen, gehen, kommen, laufenderTag, liveStand, pauseBeenden, pauseStarten, type Zeitpunkt } from '../src/core/stempeln';
+import { fortsetzen, gehen, kommen, laufenderTag, liveStand, pauseBeenden, pausenbalken, pauseStarten, type Zeitpunkt } from '../src/core/stempeln';
 import { parseUhrzeit } from '../src/core/zeit';
 import { arbeitstag } from './hilfen';
 
@@ -97,5 +97,36 @@ describe('C Laufender Tag über Mitternacht', () => {
     const tage = new Map([[gestern.datum, gestern]]);
     expect(laufenderTag(tage, new Date(2026, 7, 7, 1, 30))).toEqual({ datum: '2026-08-06', minute: 1440 + 90 });
     expect(laufenderTag(new Map(), new Date(2026, 7, 7, 1, 30))).toEqual({ datum: '2026-08-07', minute: 90 });
+  });
+});
+
+describe('C Zeitbalken der Pausenregel', () => {
+  const regel = { fensterBeginn: 660, fensterEnde: 840, mindestEinzel: 15 };
+  const u = (t: string) => parseUhrzeit(t)!;
+
+  it('gearbeitet, Pause ab 15 Min und kürzere Pause bis jetzt', () => {
+    const t = arbeitstag(D, '09:02', '00:00', ['10:45-10:59', '12:19-12:36', '13:02-13:08']);
+    t.gehen = null;
+    expect(pausenbalken(t, regel, u('13:10'))).toEqual([
+      { von: u('11:00'), bis: u('12:19'), art: 'arbeit' },
+      { von: u('12:19'), bis: u('12:36'), art: 'pause' },
+      { von: u('12:36'), bis: u('13:02'), art: 'arbeit' },
+      { von: u('13:02'), bis: u('13:08'), art: 'kurz' },
+      { von: u('13:08'), bis: u('13:10'), art: 'arbeit' }
+    ]);
+  });
+
+  it('genau 15 Minuten gelten als Pause, eine laufende Pause wird mitgezählt', () => {
+    const t = arbeitstag(D, '08:00', '00:00', ['12:00-12:15']);
+    t.gehen = null;
+    t.pausen.push({ id: 'l', beginn: u('13:00'), ende: null, quelle: 'live' });
+    const b = pausenbalken(t, regel, u('13:05'));
+    expect(b.map((x) => x.art)).toEqual(['arbeit', 'pause', 'arbeit', 'kurz']);
+  });
+
+  it('nur der Teil innerhalb von 11–14 Uhr, nach Gehen nichts mehr', () => {
+    const t = arbeitstag(D, '11:30', '13:30', ['13:50-14:20']);
+    expect(pausenbalken(t, regel, u('16:00'))).toEqual([{ von: u('11:30'), bis: u('13:30'), art: 'arbeit' }]);
+    expect(pausenbalken(arbeitstag(D, '08:00', '10:00'), regel, u('16:00'))).toEqual([]);
   });
 });
