@@ -3,7 +3,9 @@
   import type { Urlaubsantrag } from '../core/modell';
   import { antragTage, antragsliste, kalenderFuer, pruefeAntrag } from '../core/urlaubsantrag';
   import { type Datum, datumDE, jahrVon } from '../core/zeit';
+  import { icsFuerAntrag } from '../core/kalenderdatei';
   import { speicher } from '../lib/speicher.svelte';
+  import { teileDatei } from '../lib/teilen';
   import Blatt from './Blatt.svelte';
 
   let { vorhanden, heute, schliessen, pdf }: { vorhanden?: Urlaubsantrag; heute: Datum; schliessen: () => void; pdf: (a: Urlaubsantrag) => void } = $props();
@@ -95,6 +97,23 @@
     schliessen();
   }
 
+  // Kalender-Export: Die Datei direkt öffnen, damit iOS die Termin-Vorschau mit „Hinzufügen“ zeigt.
+  // Muss ohne await im Tipp-Ereignis passieren, sonst blockiert der Browser das neue Fenster.
+  const kalenderDatei = () => {
+    const x = baue();
+    return new File([icsFuerAntrag(x)], `urlaub-${x.von}.ics`, { type: 'text/calendar' });
+  };
+  function kalenderOeffnen() {
+    const url = URL.createObjectURL(kalenderDatei());
+    const fenster = window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    if (!fenster) kalenderTeilen();
+  }
+  async function kalenderTeilen() {
+    const d = kalenderDatei();
+    await teileDatei(d, d.name);
+  }
+
   const zahl = (n: number) => String(n).replace('.', ',');
 </script>
 
@@ -147,6 +166,10 @@
     {#if a0 && !a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={loeschen}>{a0.plan ? 'Plan löschen' : 'Antrag löschen'}</button>{/if}
     {#if a0 && a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
     {#if a0 && gestrichen}<button type="button" class="knopf neben" onclick={wiederaufnehmen}>Streichung aufheben</button>{/if}
+    {#if a0 && !gestrichen && !istPlan}
+      <button type="button" class="knopf neben" onclick={kalenderOeffnen}>Kalender-Export</button>
+      <button type="button" class="textknopf" onclick={kalenderTeilen}>Kalenderdatei teilen oder in Dateien sichern</button>
+    {/if}
   {/if}
 </Blatt>
 
@@ -191,6 +214,11 @@
   }
   .rot {
     color: var(--minus);
+  }
+  .textknopf {
+    color: var(--label2);
+    font-size: 14px;
+    padding: 2px 4px 4px;
   }
   .rot-voll {
     background: var(--minus);
