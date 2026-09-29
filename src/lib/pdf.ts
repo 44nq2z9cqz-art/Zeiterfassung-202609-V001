@@ -536,7 +536,7 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
   y = ende(doc);
   if (!liste.length) y = absatz(doc, y + 6, 'Noch keine Anträge in diesem Jahr.');
 
-  // Unterschrift Mitarbeiter/in unter der Tabelle
+  // Unterschrift unter der Tabelle, mit dem Namen aus den Einstellungen
   if (y > 250) {
     doc.addPage();
     y = 20;
@@ -551,7 +551,7 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
   doc.line(110, y + 1, 210 - RAND, y + 1);
   doc.setFontSize(7.5);
   doc.setTextColor(...GRAU);
-  doc.text('Unterschrift Mitarbeiter/in', 110, y + 4.5);
+  doc.text(t(`Unterschrift ${daten.einstellungen.name || 'Mitarbeiter/in'}`), 110, y + 4.5);
 
   // Kontoverlauf Urlaub
   y = zwischentitel(doc, y + 16, `Kontoverlauf Urlaub ${jahr}`);

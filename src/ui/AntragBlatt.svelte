@@ -17,7 +17,7 @@
   let genehmigt = $state(a0?.genehmigt ?? false);
   let genehmigtAm = $state<Datum>(a0?.genehmigtAm ?? '');
   let fehler = $state<string | null>(null);
-  let ansicht = $state<'antrag' | 'streichen' | 'loeschen'>('antrag');
+  let ansicht = $state<'antrag' | 'streichen'>('antrag');
   let grund = $state(a0?.gestrichen?.grund ?? '');
   let gestrichenAm = $state<Datum>(start);
 
@@ -98,7 +98,7 @@
   const zahl = (n: number) => String(n).replace('.', ',');
 </script>
 
-<Blatt titel={ansicht === 'streichen' ? 'Antrag streichen' : ansicht === 'loeschen' ? 'Antrag löschen?' : !a0 ? 'Neuer Urlaub' : istPlan ? 'Urlaub geplant' : 'Urlaubsantrag'} {schliessen}>
+<Blatt titel={ansicht === 'streichen' ? 'Antrag streichen' : !a0 ? 'Neuer Urlaub' : istPlan ? 'Urlaub geplant' : 'Urlaubsantrag'} {schliessen}>
   {#if ansicht === 'streichen'}
     <p class="hinweistext mitte">{datumDE(von)} – {datumDE(bis)} · {zahl(tage)} {tage === 1 ? 'Tag' : 'Tage'}</p>
     <div class="gruppe">
@@ -107,10 +107,6 @@
     </div>
     <p class="hinweistext">Der Antrag bleibt durchgestrichen in der Liste und im PDF. {a0?.genehmigt ? 'Die Tage werden aus dem Kalender entfernt, ' : ''}der Rest steigt wieder um {zahl(tage)} {tage === 1 ? 'Tag' : 'Tage'}.</p>
     <button type="button" class="knopf haupt rot-voll" onclick={streichen}>Streichen</button>
-    <button type="button" class="knopf neben" onclick={() => (ansicht = 'antrag')}>Abbrechen</button>
-  {:else if ansicht === 'loeschen'}
-    <p class="hinweistext mitte">Der Antrag verschwindet ganz, als hätte es ihn nie gegeben. Für einen zurückgezogenen Urlaub ist „Streichen“ meist richtig, weil der Antrag dann sichtbar bleibt.</p>
-    <button type="button" class="knopf haupt rot-voll" onclick={loeschen}>Endgültig löschen</button>
     <button type="button" class="knopf neben" onclick={() => (ansicht = 'antrag')}>Abbrechen</button>
   {:else}
     {#if gestrichen}
@@ -147,10 +143,10 @@
     {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
     <button type="button" class="knopf haupt" onclick={() => sichern(false)}>Sichern</button>
     <button type="button" class="knopf neben" onclick={() => sichern(istPlan, true)}>{istPlan ? 'Beantragen und PDF' : 'Sichern und PDF'}</button>
-    {#if a0 && istPlan}<button type="button" class="knopf neben rot" onclick={loeschen}>Plan löschen</button>{/if}
-    {#if a0 && !gestrichen && !istPlan}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
+    <!-- Bis zur Genehmigung lässt sich ein Eintrag spurlos löschen, danach nur noch streichen -->
+    {#if a0 && !a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={loeschen}>{a0.plan ? 'Plan löschen' : 'Antrag löschen'}</button>{/if}
+    {#if a0 && a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
     {#if a0 && gestrichen}<button type="button" class="knopf neben" onclick={wiederaufnehmen}>Streichung aufheben</button>{/if}
-    {#if a0 && !istPlan}<button type="button" class="textknopf" onclick={() => (ansicht = 'loeschen')}>Antrag löschen</button>{/if}
   {/if}
 </Blatt>
 
@@ -199,10 +195,5 @@
   .rot-voll {
     background: var(--minus);
     color: #fff;
-  }
-  .textknopf {
-    color: var(--label2);
-    font-size: 14px;
-    padding: 4px;
   }
 </style>
