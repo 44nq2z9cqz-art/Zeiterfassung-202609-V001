@@ -182,15 +182,18 @@
       {#if !begonnen}
         <span class="unter">Soll <b>{dauer(soll)}</b>{soll === 0 ? ' · freier Tag' : ''}</span>
       {:else}
-        <span class="unter">Kommen <b>{uhrzeit(tag!.kommen!)}</b>{beendet ? ' · Gehen ' : ''}{#if beendet}<b>{uhrzeit(tag!.gehen!)}</b>{/if}</span>
         <span class="unter">
-          {#if soll > 0 && stand!.ist < soll && !beendet}noch <b>{dauer(soll - stand!.ist)}</b> bis Soll {dauer(soll)}
-          {:else}Saldo <b class:plus-hell={stand!.saldo > 0}>{dauer(stand!.saldo, true)}</b>{/if}
+          Kommen <b>{uhrzeit(tag!.kommen!)}</b>{#if beendet} · Gehen <b>{uhrzeit(tag!.gehen!)}</b>{/if} · Pausen <b>{dauer(stand?.pausen ?? 0)}</b>
         </span>
       {/if}
     </div>
-    {#if soll > 0}
-      <Ring anteil={(stand?.ist ?? 0) / soll} text={`${Math.round(((stand?.ist ?? 0) / soll) * 100)} %`} />
+    {#if soll > 0 || begonnen}
+      <!-- Mitte: Tagessaldo (inkl. Zuschlag der Pausenregel, sobald er feststeht) -->
+      <Ring
+        anteil={soll > 0 ? (stand?.ist ?? 0) / soll : 1}
+        text={dauer(stand?.saldo ?? -soll, true)}
+        beschreibung={`Tagessaldo ${dauer(stand?.saldo ?? -soll, true)}`}
+      />
     {/if}
   </section>
 
@@ -243,7 +246,6 @@
           </span>
         </div>
       {/each}
-      <div class="zeile"><span class="l leise">Gesamt</span><span class="w stark">{dauer(stand?.pausen ?? 0)}</span></div>
     </section>
   {/if}
 
@@ -331,9 +333,6 @@
     gap: 4px;
     flex: 1;
     min-width: 0;
-  }
-  .plus-hell {
-    color: var(--lemon) !important;
   }
   .fenster {
     padding: 14px 16px 10px;
