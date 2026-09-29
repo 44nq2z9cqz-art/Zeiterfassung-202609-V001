@@ -480,10 +480,9 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
   const b = BREITE / 100;
   tabelle(doc, {
     startY: y + 6,
-    head: [['Zeitraum', 'Sonstiges', 'Anspruch', 'beantragt', 'Rest', 'Vertretung', 'genehmigt']],
+    head: [['Zeitraum', 'Anspruch', 'beantragt', 'Rest', 'Vertretung', 'genehmigt']],
     body: liste.map((z) => [
       zeitraum(z.antrag.von, z.antrag.bis),
-      t(z.status === 'gestrichen' ? `gestrichen am ${datumDE(z.antrag.gestrichen!.am)}` : (z.antrag.sonstiges ?? '')),
       tage(z.anspruch),
       tage(z.tage),
       tage(z.rest),
@@ -494,15 +493,14 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 2.2, bottom: 1.5, left: 1.8, right: 1.8 }, textColor: NACHT, lineColor: [218, 219, 213], lineWidth: { bottom: 0.15 } },
     headStyles: { fillColor: NACHT, textColor: 255, fontStyle: 'bold', fontSize: 7, lineWidth: 0, cellPadding: { top: 1.8, bottom: 1.8, left: 1.2, right: 1.2 } },
     bodyStyles: { valign: 'top', minCellHeight: 13 },
+    // Links Zeitraum (darunter Sonstiges) und die Tage, rechts zur Hälfte die beiden Unterschriftsfelder
     columnStyles: {
-      0: { cellWidth: 20 * b },
-      // schmal: so breit wie „gestrichen am tt.mm.jjjj“
-      1: { cellWidth: 18 * b, fontSize: 7, cellPadding: { top: 2.6, bottom: 1.5, left: 1.5, right: 1.5 } },
-      2: { cellWidth: 7.5 * b, halign: 'right' },
-      3: { cellWidth: 7.5 * b, halign: 'right', fontStyle: 'bold' },
-      4: { cellWidth: 7.5 * b, halign: 'right' },
-      5: { cellWidth: 19.75 * b, fontStyle: 'bold' },
-      6: { cellWidth: 19.75 * b, fontStyle: 'bold' }
+      0: { cellWidth: 26 * b },
+      1: { cellWidth: 8 * b, halign: 'right' },
+      2: { cellWidth: 8 * b, halign: 'right', fontStyle: 'bold' },
+      3: { cellWidth: 8 * b, halign: 'right' },
+      4: { cellWidth: 25 * b, fontStyle: 'bold' },
+      5: { cellWidth: 25 * b, fontStyle: 'bold' }
     },
     didParseCell: (d) => {
       if (d.section !== 'body') return;
@@ -513,21 +511,31 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
     didDrawCell: (d) => {
       if (d.section !== 'body') return;
       const z = liste[d.row.index];
-      const { x, y: oben, height } = d.cell;
-      // Gestrichen: Zeitraum durchstreichen
-      if (z.status === 'gestrichen' && d.column.index === 0) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setDrawColor(...GRAU_HELL);
-        doc.setLineWidth(0.3);
-        doc.line(x + 1.8, oben + 4.2, x + 1.8 + doc.getTextWidth(zeitraum(z.antrag.von, z.antrag.bis)), oben + 4.2);
+      const { x, y: oben, width, height } = d.cell;
+      if (d.column.index === 0) {
+        // Gestrichen: Zeitraum durchstreichen
+        if (z.status === 'gestrichen') {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.setDrawColor(...GRAU_HELL);
+          doc.setLineWidth(0.3);
+          doc.line(x + 1.8, oben + 4.2, x + 1.8 + doc.getTextWidth(zeitraum(z.antrag.von, z.antrag.bis)), oben + 4.2);
+        }
+        // Sonstiges (bzw. Streichung) klein unter dem Zeitraum
+        const notiz = [z.status === 'gestrichen' ? `gestrichen am ${datumDE(z.antrag.gestrichen!.am)}` : '', z.antrag.sonstiges].filter(Boolean).join(' · ');
+        if (notiz) {
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...(z.status === 'gestrichen' ? GRAU_HELL : GRAU));
+          doc.text(eingepasst(doc, t(notiz), width - 3.6, 7, 6), x + 1.8, oben + 8.2);
+        }
+        return;
       }
-      if (d.column.index < 5 || z.status === 'gestrichen') return;
+      if (d.column.index < 4 || z.status === 'gestrichen') return;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...GRAU);
       // Genehmigt: Datum der Genehmigung unter dem Kürzel, sonst Platz für Datum und Unterschrift
-      if (d.column.index === 6 && z.status === 'genehmigt') {
+      if (d.column.index === 5 && z.status === 'genehmigt') {
         if (z.antrag.genehmigtAm) doc.text(datumDE(z.antrag.genehmigtAm), x + 1.8, oben + 8.2);
         return;
       }
