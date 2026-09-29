@@ -2,6 +2,8 @@
   import { aufteilung, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
   import type { Buchung, Buchungsart, Konto } from '../core/modell';
   import BuchungBlatt from './BuchungBlatt.svelte';
+  import UrlaubsantragSeite from './UrlaubsantragSeite.svelte';
+  import { offeneTage } from '../core/urlaubsantrag';
   import { laufenderTag, liveStand } from '../core/stempeln';
   import { type Datum, datumDE, dauer, jahrVon, plusTage } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
@@ -31,6 +33,12 @@
 
   const jahr = $derived(jahrVon(heute));
   const urlaub = $derived(urlaubskonto(speicher.daten, jahr, heute));
+  // beantragt, aber noch nicht genehmigt: verringert den Rest, steht noch nicht im Kalender
+  const offen = $derived(offeneTage(speicher.daten, jahr));
+  const rest = $derived(urlaub.rest - offen);
+  let antraegeOffen = $state(false);
+  const antraegeJahr = $derived(speicher.antraege.filter((a) => jahrVon(a.von) === jahr));
+  const anzahlOffen = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen).length);
   const anteil = (wert: number) => (urlaub.gesamt > 0 ? Math.max(0, (wert / urlaub.gesamt) * 100) : 0);
 
   let buchungenOffen = $state(false);
@@ -85,18 +93,19 @@
 <section class="gruppe" aria-label="Urlaub {jahr}">
   <div class="zeile"><span class="etikett-hell">Urlaub {jahr}</span></div>
   <div class="zeile oben">
-    <span class="l"><span class="num rest">{String(urlaub.rest).replace('.', ',')}</span><span class="leise">Tage Rest</span></span>
+    <span class="l"><span class="num rest">{zahl(rest)}</span><span class="leise">Tage Rest</span></span>
     <span class="w">{String(urlaub.gesamt).replace('.', ',')} gesamt</span>
   </div>
   <div class="zeile">
     <div class="urlaubsbalken" role="img" aria-label="genommen, geplant und Rest">
       <i style="width:{anteil(urlaub.genommen)}%;background:var(--night)"></i>
       <i style="width:{anteil(urlaub.geplant)}%;background:var(--label3)"></i>
+      {#if offen}<i class="schraffur" style="width:{anteil(offen)}%"></i>{/if}
       <i style="flex:1;background:var(--lemon)"></i>
     </div>
   </div>
   <button type="button" class="zeile" onclick={() => (uebersichtOffen = true)}>
-    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} geplant</span><span class="pfeil">›</span>
+    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} geplant{offen ? ` · ${zahl(offen)} beantragt` : ''}</span><span class="pfeil">›</span>
   </button>
 </section>
 
@@ -118,7 +127,8 @@
       {:else}
         <div class="zeile"><span class="l leise">Noch kein Urlaub eingetragen</span></div>
       {/each}
-      <div class="zeile"><span class="l"><b>Rest</b></span><span class="w stark">{zahl(urlaub.rest)}</span></div>
+      {#if offen}<div class="zeile"><span class="l"><span>Beantragt<small>noch nicht genehmigt, nicht im Kalender</small></span></span><span class="w stark">{zahl(offen)} Tage</span></div>{/if}
+      <div class="zeile"><span class="l"><b>Rest</b></span><span class="w stark">{zahl(rest)}</span></div>
     </div>
     <p class="hinweistext">Ein falscher Eintrag lässt sich im Kalender korrigieren: Tag öffnen und die Tagesart ändern, oder „Zeitraum“ → „Entfernen“.</p>
   </Blatt>
@@ -161,6 +171,17 @@
     {/each}
   {/if}
 </section>
+
+<section class="gruppe" aria-label="Urlaubsantrag">
+  <button type="button" class="zeile" onclick={() => (antraegeOffen = true)}>
+    <span class="l"><b>Urlaubsantrag</b></span>
+    <span class="w">{anzahlOffen ? `${anzahlOffen} offen · ` : ''}{antraegeJahr.length} <span class="pfeil">›</span></span>
+  </button>
+</section>
+
+{#if antraegeOffen}
+  <UrlaubsantragSeite {jahr} {heute} schliessen={() => (antraegeOffen = false)} />
+{/if}
 
 {#if bearbeiten}
   <BuchungBlatt konto={bearbeiten.konto} art={bearbeiten.art} vorhanden={bearbeiten.vorhanden} {heute} schliessen={() => (bearbeiten = null)} />
@@ -208,5 +229,8 @@
   }
   .pfeil {
     display: inline-block;
+  }
+  .schraffur {
+    background: repeating-linear-gradient(135deg, var(--label3) 0 2px, var(--group) 2px 5px);
   }
 </style>

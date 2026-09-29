@@ -20,11 +20,14 @@
   const e = $derived(speicher.einstellungen);
   let name = $state(untrack(() => speicher.einstellungen.name));
   let personalnummer = $state(untrack(() => speicher.einstellungen.personalnummer));
+  let genehmiger = $state(untrack(() => speicher.einstellungen.genehmiger ?? 'CHE'));
   async function personSichern() {
     const n = name.trim();
     const p = personalnummer.trim();
-    if (n === e.name && p === e.personalnummer) return;
-    await speicher.speichereEinstellungen({ ...e, name: n, personalnummer: p });
+    const g = genehmiger.trim().toUpperCase() || 'CHE';
+    genehmiger = g;
+    if (n === e.name && p === e.personalnummer && g === (e.genehmiger ?? 'CHE')) return;
+    await speicher.speichereEinstellungen({ ...e, name: n, personalnummer: p, genehmiger: g });
   }
 
   const regel = $derived(gueltigAm(e.pausenregel, heute));
@@ -140,8 +143,9 @@
       <div class="gruppe">
         <label class="zeile"><span class="l">Name</span><input class="eingabe" id="e-name" autocomplete="name" placeholder="optional" bind:value={name} onblur={personSichern} /></label>
         <label class="zeile"><span class="l">Personalnummer</span><input class="eingabe" id="e-pnr" inputmode="numeric" placeholder="optional" bind:value={personalnummer} onblur={personSichern} /></label>
+        <label class="zeile"><span class="l">Urlaub genehmigt von</span><input class="eingabe" id="e-genehmiger" maxlength="6" autocapitalize="characters" placeholder="Kürzel" bind:value={genehmiger} onblur={personSichern} /></label>
       </div>
-      <p class="hinweistext">Erscheint oben rechts auf jedem PDF-Bericht. Bleibt nur auf diesem Gerät.</p>
+      <p class="hinweistext">Name und Personalnummer erscheinen oben rechts auf jedem PDF-Bericht, das Kürzel bei genehmigten Urlaubsanträgen. Bleibt nur auf diesem Gerät.</p>
 
       <h2 class="abschnitt">App</h2>
       <div class="gruppe">

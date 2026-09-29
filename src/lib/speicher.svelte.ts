@@ -1,7 +1,8 @@
 // Zustand der App im Speicher, geladen aus IndexedDB.
 import { standardEinstellungen } from '../core/einstellungen';
 import type { Pruefbericht } from '../core/import-altapp';
-import type { Buchung, Datenbestand, Einstellungen, Tag } from '../core/modell';
+import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
+import { antraegeAusKalender, type Kalenderaenderung } from '../core/urlaubsantrag';
 import { type Datum, heute } from '../core/zeit';
 import { META, db, exportiereAlles, leseMeta, schreibeMeta } from './db';
 
@@ -10,13 +11,14 @@ class Speicher {
   fehler = $state<string | null>(null);
   tage = $state.raw(new Map<Datum, Tag>());
   buchungen = $state.raw<Buchung[]>([]);
+  antraege = $state.raw<Urlaubsantrag[]>([]);
   einstellungen = $state.raw<Einstellungen>(standardEinstellungen(heute()));
   dauerhaft = $state<boolean | null>(null);
   /** Zeitpunkt des letzten Backups (ISO) */
   letztesBackup = $state<string | undefined>(undefined);
 
   get daten(): Datenbestand {
-    return { tage: this.tage, buchungen: this.buchungen, einstellungen: this.einstellungen };
+    return { tage: this.tage, buchungen: this.buchungen, einstellungen: this.einstellungen, antraege: this.antraege };
   }
 
   get hatDaten(): boolean {
@@ -25,12 +27,14 @@ class Speicher {
 
   async laden() {
     try {
-      const [tage, buchungen, einstellungen, letztesBackup] = await Promise.all([
+      const [tage, buchungen, einstellungen, letztesBackup, antraege] = await Promise.all([
         db.tage.toArray(),
         db.buchungen.toArray(),
         leseMeta<Einstellungen>(META.einstellungen),
-        leseMeta<string>(META.letztesBackup)
+        leseMeta<string>(META.letztesBackup),
+        db.antraege.toArray()
       ]);
+      this.antraege = antraege;
       this.letztesBackup = letztesBackup;
       this.tage = new Map(tage.sort((a, b) => a.datum.localeCompare(b.datum)).map((t) => [t.datum, t]));
       this.buchungen = buchungen;
@@ -39,6 +43,7 @@ class Speicher {
       } else {
         await schreibeMeta(META.einstellungen, this.einstellungen);
       }
+      await this.antraegeUebernehmen();
       this.geladen = true;
     } catch (e) {
       this.fehler = e instanceof Error ? e.message : String(e);
@@ -67,6 +72,48 @@ class Speicher {
       await schreibeMeta(META.umstellungen, [...((await leseMeta<string[]>(META.umstellungen)) ?? []), 'hinweis-1300']);
     }
     return neu;
+  }
+
+  /** v0.8: Für bereits eingetragenen Urlaub einmalig genehmigte Anträge anlegen. */
+  private async antraegeUebernehmen() {
+    const erledigt = (await leseMeta<string[]>(META.umstellungen)) ?? [];
+    if (erledigt.includes('antraege-aus-kalender')) return;
+    if (this.antraege.length === 0) {
+      const neu = antraegeAusKalender(this.daten, new Date().toISOString());
+      if (neu.length) {
+        await db.antraege.bulkPut(neu);
+        this.antraege = neu;
+      }
+    }
+    await schreibeMeta(META.umstellungen, [...erledigt, 'antraege-aus-kalender']);
+  }
+
+  /** Antrag speichern und den Kalender in einem Schritt anpassen. */
+  async speichereAntrag(antrag: Urlaubsantrag, kalender: Kalenderaenderung) {
+    await db.transaction('rw', db.antraege, db.tage, async () => {
+      await db.antraege.put($state.snapshot(antrag) as Urlaubsantrag);
+      if (kalender.speichern.length) await db.tage.bulkPut(kalender.speichern.map((t) => $state.snapshot(t) as Tag));
+      if (kalender.loeschen.length) await db.tage.bulkDelete(kalender.loeschen);
+    });
+    this.antraege = [...this.antraege.filter((a) => a.id !== antrag.id), antrag];
+    const tage = new Map(this.tage);
+    for (const t of kalender.speichern) tage.set(t.datum, t);
+    for (const d of kalender.loeschen) tage.delete(d);
+    this.tage = new Map([...tage.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  }
+
+  /** Antrag ganz löschen (für Fehleingaben) und den Kalender anpassen. */
+  async loescheAntrag(id: string, kalender: Kalenderaenderung) {
+    await db.transaction('rw', db.antraege, db.tage, async () => {
+      await db.antraege.delete(id);
+      if (kalender.speichern.length) await db.tage.bulkPut(kalender.speichern.map((t) => $state.snapshot(t) as Tag));
+      if (kalender.loeschen.length) await db.tage.bulkDelete(kalender.loeschen);
+    });
+    this.antraege = this.antraege.filter((a) => a.id !== id);
+    const tage = new Map(this.tage);
+    for (const t of kalender.speichern) tage.set(t.datum, t);
+    for (const d of kalender.loeschen) tage.delete(d);
+    this.tage = tage;
   }
 
   /** iOS bitten, die Daten dauerhaft zu behalten (Konzept F). */
@@ -132,7 +179,9 @@ class Speicher {
 
   /** Ersetzt alle Daten durch den Import der alten App. Vorher wird eine Sicherheitskopie angelegt. */
   async importieren(daten: Datenbestand, bericht: Pruefbericht) {
-    await this.ersetzeAlles(daten, { schluessel: META.letzterImport, wert: { am: new Date().toISOString(), bericht } });
+    // Urlaub aus der alten App wird als genehmigte Anträge übernommen
+    const mitAntraegen = { ...daten, antraege: antraegeAusKalender(daten, new Date().toISOString()) };
+    await this.ersetzeAlles(mitAntraegen, { schluessel: META.letzterImport, wert: { am: new Date().toISOString(), bericht } });
   }
 
   /** Stellt ein Backup wieder her. Vorher wird eine Sicherheitskopie angelegt. */
@@ -142,12 +191,14 @@ class Speicher {
 
   private async ersetzeAlles(daten: Datenbestand, vermerk: { schluessel: string; wert: unknown }) {
     const kopie = await exportiereAlles();
-    await db.transaction('rw', db.tage, db.buchungen, db.meta, async () => {
+    await db.transaction('rw', [db.tage, db.buchungen, db.meta, db.antraege], async () => {
       await db.meta.put({ schluessel: META.sicherungVorImport, wert: kopie });
       await db.tage.clear();
       await db.buchungen.clear();
+      await db.antraege.clear();
       await db.tage.bulkPut([...daten.tage.values()]);
       await db.buchungen.bulkPut(daten.buchungen);
+      await db.antraege.bulkPut(daten.antraege ?? []);
       await db.meta.put({ schluessel: META.einstellungen, wert: daten.einstellungen });
       await db.meta.put(vermerk);
     });

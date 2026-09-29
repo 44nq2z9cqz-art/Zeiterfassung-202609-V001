@@ -98,10 +98,30 @@ export interface Einstellungen {
   name: string;
   personalnummer: string;
   hinweise: Hinweise;
+  /** Kürzel, das bei genehmigten Urlaubsanträgen erscheint */
+  genehmiger?: string;
+}
+
+/** Elektronischer Urlaubsantrag (wie der Urlaubsschein der Firma) */
+export interface Urlaubsantrag {
+  id: string;
+  von: Datum;
+  bis: Datum;
+  /** kurzes Stichwort, z. B. „Brückentag“ */
+  sonstiges?: string;
+  /** Kürzel der Vertretung */
+  vertretung?: string;
+  /** Erst genehmigte Anträge stehen als Urlaub im Kalender */
+  genehmigt: boolean;
+  genehmigtAm?: Datum;
+  /** Nachträglich gestrichen – bleibt sichtbar, zählt aber nicht mehr */
+  gestrichen?: { am: Datum; grund?: string };
+  erstelltAm: string;
 }
 
 export interface Datenbestand {
   tage: Map<Datum, Tag>;
   buchungen: Buchung[];
   einstellungen: Einstellungen;
+  antraege?: Urlaubsantrag[];
 }

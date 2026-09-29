@@ -14,8 +14,10 @@ import {
   type Summen
 } from '../core/berichte';
 import { gueltigAm } from '../core/einstellungen';
+import { urlaubskonto } from '../core/konten';
+import { anspruch, antragsliste } from '../core/urlaubsantrag';
 import type { Datenbestand } from '../core/modell';
-import { WOCHENTAGE, type Datum, datumDE, dauer, uhrzeit, wochentag } from '../core/zeit';
+import { WOCHENTAGE, type Datum, datumDE, dauer, jahrVon, uhrzeit, wochentag } from '../core/zeit';
 
 const NACHT: [number, number, number] = [16, 19, 26];
 const GRAU: [number, number, number] = [107, 111, 120];
@@ -450,4 +452,124 @@ function kontenTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heu
     foot: [['', `Rest (Anspruch ${tage(u.gesamt)}, genommen ${tage(u.genommen)}, geplant ${tage(u.geplant)})`, tage(u.rest)]],
     columnStyles: { 2: { halign: 'right' } }
   });
+}
+
+// ─── Urlaubsantrag ───────────────────────────────────────────────────────
+
+/**
+ * Urlaubsschein eines Jahres im Stil des Firmenformulars. Vertretung und Geschäftsführung
+ * unterschreiben in der Zeile des Antrags, der Mitarbeiter unter der Tabelle.
+ * Antragsdatum ist der Tag der Ausgabe.
+ */
+export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum, hervorheben?: string): Blob {
+  const doc = neuesDokument(daten, { titel: `Urlaubsantrag ${jahr}`, unter: `Stand ${datumDE(heute)}` });
+  const tage = (n: number) => String(n).replace('.', ',');
+  const a = anspruch(daten, jahr, heute);
+  let y = kaestchen(doc, 38, [
+    [`Resturlaub aus ${jahr - 1}`, `${tage(a.resturlaub)} Tage`],
+    [`Jahresurlaub ${jahr}`, `${tage(a.jahresurlaub)} Tage`],
+    [`Sonderurlaub ${jahr}`, `${tage(a.sonderurlaub)} Tage`],
+    ['Gesamtanspruch', `${tage(a.gesamt)} Tage`]
+  ]);
+
+  const liste = antragsliste(daten, jahr, heute);
+  const genehmiger = daten.einstellungen.genehmiger || 'CHE';
+  const zeitraum = (von: Datum, bis: Datum) => (von === bis ? datumDE(von) : `${kurzDatum(von)} - ${datumDE(bis)}`);
+  const GRAU_HELL: [number, number, number] = [154, 158, 166];
+  const b = BREITE / 100;
+  tabelle(doc, {
+    startY: y + 6,
+    head: [['Zeitraum', 'Sonstiges', 'Anspruch', 'beantragt', 'Rest', 'Vertretung', 'genehmigt']],
+    body: liste.map((z) => [
+      zeitraum(z.antrag.von, z.antrag.bis),
+      t(z.status === 'gestrichen' ? `gestrichen am ${datumDE(z.antrag.gestrichen!.am)}` : (z.antrag.sonstiges ?? '')),
+      tage(z.anspruch),
+      tage(z.tage),
+      tage(z.rest),
+      t(z.antrag.vertretung ?? ''),
+      z.status === 'genehmigt' ? genehmiger : ''
+    ]),
+    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 2.2, bottom: 1.5, left: 1.8, right: 1.8 }, textColor: NACHT, lineColor: [218, 219, 213], lineWidth: { bottom: 0.15 } },
+    headStyles: { fillColor: NACHT, textColor: 255, fontStyle: 'bold', fontSize: 7, lineWidth: 0, cellPadding: { top: 1.8, bottom: 1.8, left: 1.2, right: 1.2 } },
+    bodyStyles: { valign: 'top', minCellHeight: 13 },
+    columnStyles: {
+      0: { cellWidth: 20 * b },
+      // schmal: so breit wie „gestrichen am tt.mm.jjjj“
+      1: { cellWidth: 18 * b, fontSize: 7, cellPadding: { top: 2.6, bottom: 1.5, left: 1.5, right: 1.5 } },
+      2: { cellWidth: 7.5 * b, halign: 'right' },
+      3: { cellWidth: 7.5 * b, halign: 'right', fontStyle: 'bold' },
+      4: { cellWidth: 7.5 * b, halign: 'right' },
+      5: { cellWidth: 19.75 * b, fontStyle: 'bold' },
+      6: { cellWidth: 19.75 * b, fontStyle: 'bold' }
+    },
+    didParseCell: (d) => {
+      if (d.section !== 'body') return;
+      const z = liste[d.row.index];
+      if (z.antrag.id === hervorheben) d.cell.styles.fillColor = MARKE;
+      if (z.status === 'gestrichen') d.cell.styles.textColor = GRAU_HELL;
+    },
+    didDrawCell: (d) => {
+      if (d.section !== 'body') return;
+      const z = liste[d.row.index];
+      const { x, y: oben, height } = d.cell;
+      // Gestrichen: Zeitraum durchstreichen
+      if (z.status === 'gestrichen' && d.column.index === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setDrawColor(...GRAU_HELL);
+        doc.setLineWidth(0.3);
+        doc.line(x + 1.8, oben + 4.2, x + 1.8 + doc.getTextWidth(zeitraum(z.antrag.von, z.antrag.bis)), oben + 4.2);
+      }
+      if (d.column.index < 5 || z.status === 'gestrichen') return;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...GRAU);
+      // Genehmigt: Datum der Genehmigung unter dem Kürzel, sonst Platz für Datum und Unterschrift
+      if (d.column.index === 6 && z.status === 'genehmigt') {
+        if (z.antrag.genehmigtAm) doc.text(datumDE(z.antrag.genehmigtAm), x + 1.8, oben + 8.2);
+        return;
+      }
+      doc.text('Datum', x + 1.8, oben + height - 1.8);
+    }
+  });
+  y = ende(doc);
+  if (!liste.length) y = absatz(doc, y + 6, 'Noch keine Anträge in diesem Jahr.');
+
+  // Unterschrift Mitarbeiter/in unter der Tabelle
+  if (y > 250) {
+    doc.addPage();
+    y = 20;
+  }
+  y += 16;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...NACHT);
+  doc.text(`Datum: ${datumDE(heute)}`, RAND, y);
+  doc.setDrawColor(...NACHT);
+  doc.setLineWidth(0.25);
+  doc.line(110, y + 1, 210 - RAND, y + 1);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAU);
+  doc.text('Unterschrift Mitarbeiter/in', 110, y + 4.5);
+
+  // Kontoverlauf Urlaub
+  y = zwischentitel(doc, y + 16, `Kontoverlauf Urlaub ${jahr}`);
+  const k = urlaubskonto(daten, jahr, heute);
+  const buchungen = daten.buchungen.filter((x) => x.konto === 'urlaub' && jahrVon(x.datum) === jahr).sort((p, q) => p.datum.localeCompare(q.datum));
+  const zaehlend = liste.filter((z) => z.status !== 'gestrichen');
+  const vorgang = (z: (typeof liste)[number]) =>
+    z.status === 'beantragt' ? 'beantragt, noch nicht genehmigt' : z.antrag.bis < heute ? 'Urlaub genommen' : z.antrag.von < heute ? 'Urlaub genehmigt, teilweise genommen' : 'Urlaub genehmigt';
+  tabelle(doc, {
+    startY: y + 1,
+    head: [['Datum', 'Vorgang', 'Tage']],
+    body: [
+      ...(k.uebertrag ? [['01.01.' + jahr, `Übertrag aus ${jahr - 1}`, tage(k.uebertrag)]] : []),
+      ['01.01.' + jahr, 'Jahresanspruch', tage(k.jahresanspruch)],
+      ...buchungen.map((x) => [datumDE(x.datum), t([ART_NAMEN[x.art], x.kommentar].filter(Boolean).join(' · ')), (x.betrag > 0 ? '+' : '') + tage(x.betrag)]),
+      ...zaehlend.map((z) => [zeitraum(z.antrag.von, z.antrag.bis), t([vorgang(z), z.antrag.sonstiges].filter(Boolean).join(' · ')), '-' + tage(z.tage)])
+    ],
+    foot: [['', 'Rest', tage(zaehlend.at(-1)?.rest ?? a.gesamt)]],
+    columnStyles: { 0: { cellWidth: 38 }, 2: { halign: 'right' } }
+  });
+  return abschliessen(doc, `Erstellt am ${datumDE(heute)}`);
 }

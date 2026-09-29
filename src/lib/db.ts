@@ -1,6 +1,6 @@
 // Lokale Datenbank (IndexedDB über Dexie), Konzept F.
 import Dexie, { type Table } from 'dexie';
-import type { Buchung, Einstellungen, Tag } from '../core/modell';
+import type { Buchung, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
 
 export interface MetaEintrag {
   schluessel: string;
@@ -11,6 +11,7 @@ export class ZeitDB extends Dexie {
   tage!: Table<Tag, string>;
   buchungen!: Table<Buchung, string>;
   meta!: Table<MetaEintrag, string>;
+  antraege!: Table<Urlaubsantrag, string>;
 
   constructor(name = 'zeiterfassung') {
     super(name);
@@ -19,6 +20,10 @@ export class ZeitDB extends Dexie {
       tage: 'datum',
       buchungen: 'id, konto, datum',
       meta: 'schluessel'
+    });
+    // Version 2: Urlaubsanträge
+    this.version(2).stores({
+      antraege: 'id, von'
     });
   }
 }
@@ -50,6 +55,7 @@ export async function exportiereAlles() {
     erstelltAm: new Date().toISOString(),
     tage: await db.tage.toArray(),
     buchungen: await db.buchungen.toArray(),
+    antraege: await db.antraege.toArray(),
     einstellungen: await leseMeta<Einstellungen>(META.einstellungen)
   };
 }

@@ -1,6 +1,6 @@
 // Backup und Wiederherstellung (Konzept A3, F): eine JSON-Datei mit allen Daten und Schema-Version.
 import { standardEinstellungen } from './einstellungen';
-import type { Buchung, Datenbestand, Einstellungen, Tag } from './modell';
+import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from './modell';
 import { type Datum, jahrVon } from './zeit';
 
 export const BACKUP_FORMAT = 'zeiterfassung-202609';
@@ -13,6 +13,8 @@ export interface Backup {
   appVersion?: string;
   tage: Tag[];
   buchungen: Buchung[];
+  /** ab App-Version 0.8 */
+  antraege?: Urlaubsantrag[];
   einstellungen: Einstellungen;
 }
 
@@ -24,6 +26,7 @@ export function erstelleBackup(daten: Datenbestand, appVersion: string, jetzt = 
     appVersion,
     tage: [...daten.tage.values()],
     buchungen: daten.buchungen,
+    antraege: daten.antraege ?? [],
     einstellungen: daten.einstellungen
   };
 }
@@ -73,7 +76,7 @@ export function pruefeBackup(json: unknown): Pruefergebnis {
 
   const sortiert = [...tage].sort((a, x) => a.datum.localeCompare(x.datum));
   return {
-    daten: { tage: new Map(sortiert.map((t) => [t.datum, t])), buchungen, einstellungen },
+    daten: { tage: new Map(sortiert.map((t) => [t.datum, t])), buchungen, einstellungen, antraege: Array.isArray(b.antraege) ? b.antraege.filter((a) => a && typeof a.id === 'string' && istDatum(a.von) && istDatum(a.bis)) : [] },
     vorschau: {
       erstelltAm: b.erstelltAm ?? '',
       appVersion: b.appVersion,
