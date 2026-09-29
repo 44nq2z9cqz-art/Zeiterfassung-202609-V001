@@ -480,12 +480,13 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
   const b = BREITE / 100;
   tabelle(doc, {
     startY: y + 6,
-    head: [['Zeitraum', 'Anspruch', 'beantragt', 'Rest', 'Vertretung', 'genehmigt']],
+    head: [['Zeitraum', 'Anspruch', 'beantragt', 'Rest', '', 'Vertretung', 'genehmigt']],
     body: liste.map((z) => [
       zeitraum(z.antrag.von, z.antrag.bis),
       tage(z.anspruch),
       tage(z.tage),
       tage(z.rest),
+      '',
       t(z.antrag.vertretung ?? ''),
       // Es gibt nur eine genehmigende Person, das Kürzel steht daher immer da
       genehmiger
@@ -495,12 +496,14 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
     bodyStyles: { valign: 'top', minCellHeight: 13 },
     // Links Zeitraum (darunter Sonstiges) und die Tage, rechts zur Hälfte die beiden Unterschriftsfelder
     columnStyles: {
-      0: { cellWidth: 26 * b },
+      0: { cellWidth: 23 * b },
       1: { cellWidth: 8 * b, halign: 'right' },
       2: { cellWidth: 8 * b, halign: 'right', fontStyle: 'bold' },
       3: { cellWidth: 8 * b, halign: 'right' },
-      4: { cellWidth: 25 * b, fontStyle: 'bold' },
-      5: { cellWidth: 25 * b, fontStyle: 'bold' }
+      // Abstand zwischen den Tagen und den Unterschriftsfeldern
+      4: { cellWidth: 3 * b },
+      5: { cellWidth: 25 * b, fontStyle: 'bold' },
+      6: { cellWidth: 25 * b, fontStyle: 'bold' }
     },
     didParseCell: (d) => {
       if (d.section !== 'body') return;
@@ -530,12 +533,12 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
         }
         return;
       }
-      if (d.column.index < 4 || z.status === 'gestrichen') return;
+      if (d.column.index < 5 || z.status === 'gestrichen') return;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...GRAU);
       // Genehmigt: Datum der Genehmigung unter dem Kürzel, sonst Platz für Datum und Unterschrift
-      if (d.column.index === 5 && z.status === 'genehmigt') {
+      if (d.column.index === 6 && z.status === 'genehmigt') {
         if (z.antrag.genehmigtAm) doc.text(datumDE(z.antrag.genehmigtAm), x + 1.8, oben + 8.2);
         return;
       }
