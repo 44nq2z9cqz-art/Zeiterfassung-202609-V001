@@ -111,6 +111,8 @@ export interface Urlaubsantrag {
   sonstiges?: string;
   /** Kürzel der Vertretung */
   vertretung?: string;
+  /** Nur geplant (Simulation): zählt mit, ist aber noch nicht beantragt und erscheint nicht im PDF */
+  plan?: boolean;
   /** Erst genehmigte Anträge stehen als Urlaub im Kalender */
   genehmigt: boolean;
   genehmigtAm?: Datum;

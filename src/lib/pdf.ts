@@ -15,7 +15,7 @@ import {
 } from '../core/berichte';
 import { gueltigAm } from '../core/einstellungen';
 import { urlaubskonto } from '../core/konten';
-import { anspruch, antragsliste } from '../core/urlaubsantrag';
+import { anspruch, antragsliste, antragsstatus } from '../core/urlaubsantrag';
 import type { Datenbestand } from '../core/modell';
 import { WOCHENTAGE, type Datum, datumDE, dauer, jahrVon, uhrzeit, wochentag } from '../core/zeit';
 
@@ -447,9 +447,9 @@ function kontenTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heu
       ...(u.uebertrag ? [['01.01.' + u.jahr, `Übertrag aus ${u.jahr - 1}`, tage(u.uebertrag)]] : []),
       ['01.01.' + u.jahr, 'Jahresanspruch', tage(u.jahresanspruch)],
       ...k.urlaubBuchungen.map((b) => [datumDE(b.datum), t([ART_NAMEN[b.art], b.kommentar].filter(Boolean).join(' · ')), (b.betrag > 0 ? '+' : '') + tage(b.betrag)]),
-      ...k.urlaubszeitraeume.map((z) => [z.von === z.bis ? datumDE(z.von) : `${kurzDatum(z.von)} - ${datumDE(z.bis)}`, z.geplant ? 'Urlaub geplant' : 'Urlaub genommen', '-' + tage(z.tage)])
+      ...k.urlaubszeitraeume.map((z) => [z.von === z.bis ? datumDE(z.von) : `${kurzDatum(z.von)} - ${datumDE(z.bis)}`, z.geplant ? 'Urlaub genehmigt' : 'Urlaub genommen', '-' + tage(z.tage)])
     ],
-    foot: [['', `Rest (Anspruch ${tage(u.gesamt)}, genommen ${tage(u.genommen)}, geplant ${tage(u.geplant)})`, tage(u.rest)]],
+    foot: [['', `Rest (Anspruch ${tage(u.gesamt)}, genommen ${tage(u.genommen)}, genehmigt ${tage(u.geplant)})`, tage(u.rest)]],
     columnStyles: { 2: { halign: 'right' } }
   });
 }
@@ -472,7 +472,8 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
     ['Gesamtanspruch', `${tage(a.gesamt)} Tage`]
   ]);
 
-  const liste = antragsliste(daten, jahr, heute);
+  // Pläne sind nur Simulation und gehören nicht in den Antrag an die Firma
+  const liste = antragsliste({ ...daten, antraege: (daten.antraege ?? []).filter((x) => antragsstatus(x) !== 'geplant') }, jahr, heute);
   const genehmiger = daten.einstellungen.genehmiger || 'CHE';
   const zeitraum = (von: Datum, bis: Datum) => (von === bis ? datumDE(von) : `${kurzDatum(von)} - ${datumDE(bis)}`);
   const GRAU_HELL: [number, number, number] = [154, 158, 166];

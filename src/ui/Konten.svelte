@@ -35,10 +35,13 @@
   const urlaub = $derived(urlaubskonto(speicher.daten, jahr, heute));
   // beantragt, aber noch nicht genehmigt: verringert den Rest, steht noch nicht im Kalender
   const offen = $derived(offeneTage(speicher.daten, jahr));
-  const rest = $derived(urlaub.rest - offen);
+  // geplant: Simulation, zählt aber ebenfalls schon mit
+  const plan = $derived(offeneTage(speicher.daten, jahr, 'geplant'));
+  const rest = $derived(urlaub.rest - offen - plan);
   let antraegeOffen = $state(false);
   const antraegeJahr = $derived(speicher.antraege.filter((a) => jahrVon(a.von) === jahr));
-  const anzahlOffen = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen).length);
+  const anzahlOffen = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen && !a.plan).length);
+  const anzahlPlan = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen && a.plan).length);
   const anteil = (wert: number) => (urlaub.gesamt > 0 ? Math.max(0, (wert / urlaub.gesamt) * 100) : 0);
 
   let buchungenOffen = $state(false);
@@ -97,15 +100,15 @@
     <span class="w">{String(urlaub.gesamt).replace('.', ',')} gesamt</span>
   </div>
   <div class="zeile">
-    <div class="urlaubsbalken" role="img" aria-label="genommen, geplant und Rest">
+    <div class="urlaubsbalken" role="img" aria-label="genommen, genehmigt, beantragt, geplant und Rest">
       <i style="width:{anteil(urlaub.genommen)}%;background:var(--night)"></i>
       <i style="width:{anteil(urlaub.geplant)}%;background:var(--label3)"></i>
-      {#if offen}<i class="schraffur" style="width:{anteil(offen)}%"></i>{/if}
+      {#if offen + plan}<i class="schraffur" style="width:{anteil(offen + plan)}%"></i>{/if}
       <i style="flex:1;background:var(--lemon)"></i>
     </div>
   </div>
   <button type="button" class="zeile" onclick={() => (uebersichtOffen = true)}>
-    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} geplant{offen ? ` · ${zahl(offen)} beantragt` : ''}</span><span class="pfeil">›</span>
+    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} genehmigt{offen ? ` · ${zahl(offen)} beantragt` : ''}{plan ? ` · ${zahl(plan)} geplant` : ''}</span><span class="pfeil">›</span>
   </button>
 </section>
 
@@ -121,13 +124,14 @@
     <div class="gruppe">
       {#each zeitraeume as z (z.von)}
         <div class="zeile">
-          <span class="l"><span>{z.von === z.bis ? datumDE(z.von) : `${datumDE(z.von).slice(0, 6)} – ${datumDE(z.bis)}`}<small>{z.geplant ? 'geplant' : 'genommen'}</small></span></span>
+          <span class="l"><span>{z.von === z.bis ? datumDE(z.von) : `${datumDE(z.von).slice(0, 6)} – ${datumDE(z.bis)}`}<small>{z.geplant ? 'genehmigt' : 'genommen'}</small></span></span>
           <span class="w stark">{zahl(z.tage)} {z.tage === 1 ? 'Tag' : 'Tage'}</span>
         </div>
       {:else}
         <div class="zeile"><span class="l leise">Noch kein Urlaub eingetragen</span></div>
       {/each}
       {#if offen}<div class="zeile"><span class="l"><span>Beantragt<small>noch nicht genehmigt, nicht im Kalender</small></span></span><span class="w stark">{zahl(offen)} Tage</span></div>{/if}
+      {#if plan}<div class="zeile"><span class="l"><span>Geplant<small>noch nicht beantragt, nicht im Kalender</small></span></span><span class="w stark">{zahl(plan)} Tage</span></div>{/if}
       <div class="zeile"><span class="l"><b>Rest</b></span><span class="w stark">{zahl(rest)}</span></div>
     </div>
     <p class="hinweistext">Ein falscher Eintrag lässt sich im Kalender korrigieren: Tag öffnen und die Tagesart ändern, oder „Zeitraum“ → „Entfernen“.</p>
@@ -175,7 +179,7 @@
 <section class="gruppe" aria-label="Urlaubsantrag">
   <button type="button" class="zeile" onclick={() => (antraegeOffen = true)}>
     <span class="l"><b>Urlaubsantrag</b></span>
-    <span class="w">{anzahlOffen ? `${anzahlOffen} offen · ` : ''}{antraegeJahr.length} <span class="pfeil">›</span></span>
+    <span class="w">{anzahlPlan ? `${anzahlPlan} geplant · ` : ''}{anzahlOffen ? `${anzahlOffen} offen · ` : ''}{antraegeJahr.length} <span class="pfeil">›</span></span>
   </button>
 </section>
 

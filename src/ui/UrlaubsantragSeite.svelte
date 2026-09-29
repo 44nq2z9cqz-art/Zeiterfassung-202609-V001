@@ -65,13 +65,13 @@
     {:else}
       <div class="zeile"><span class="l leise">Noch keine Anträge für {jahr}</span></div>
     {/each}
-    <button type="button" class="zeile aktion" onclick={() => (blatt = {})}><span class="l">+ Neuer Antrag</span><span class="pfeil">›</span></button>
+    <button type="button" class="zeile aktion" onclick={() => (blatt = {})}><span class="l">+ Urlaub planen</span><span class="pfeil">›</span></button>
   </div>
 
   <div class="gruppe">
     <div class="zeile"><span class="l"><b>Resturlaub</b></span><span class="w stark">{zahl(rest)} {rest === 1 ? 'Tag' : 'Tage'}</span></div>
   </div>
-  <p class="hinweistext">„Beantragt“ verringert den Rest schon, steht aber erst nach der Genehmigung im Kalender. Das PDF trägt das heutige Datum als Antragsdatum.</p>
+  <p class="hinweistext">Neuer Urlaub ist zunächst nur „geplant“: So lassen sich Varianten durchspielen, und ein Plan lässt sich jederzeit spurlos löschen. „Beantragen und PDF“ macht daraus einen Antrag. Geplant und beantragt verringern den Rest schon, im Kalender steht der Urlaub erst nach der Genehmigung. Pläne erscheinen nicht im PDF, das PDF trägt das heutige Datum als Antragsdatum.</p>
 
   {#if meldung}<p class="hinweistext" role="status">{meldung}</p>{/if}
   <button type="button" class="knopf haupt" disabled={arbeitet} onclick={() => pdf()}>{arbeitet ? 'PDF wird erstellt …' : 'PDF erstellen'}</button>
@@ -104,6 +104,11 @@
   .chip.genehmigt {
     background: var(--night);
     color: var(--lemon);
+  }
+  .chip.geplant {
+    border: 1px dashed var(--label3);
+    color: var(--label2);
+    padding: 1px 6px;
   }
   .chip.beantragt {
     background: var(--fill);

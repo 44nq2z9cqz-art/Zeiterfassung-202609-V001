@@ -38,6 +38,8 @@
   const kuerzel = $derived(speicher.einstellungen.genehmiger || 'CHE');
   const tage = $derived(antragTage(von, bis));
   const gestrichen = $derived(!!a0?.gestrichen);
+  // Neue Einträge sind zunächst nur geplant (zum Durchspielen von Varianten)
+  const istPlan = $derived(!genehmigt && (a0 ? !!a0.plan && !a0.genehmigt : true));
   const restDanach = $derived.by(() => {
     if (!von || !bis || von > bis) return null;
     const probe: Urlaubsantrag = { ...(a0 ?? { id: '__neu__', erstelltAm: '' }), von, bis, genehmigt, gestrichen: a0?.gestrichen };
@@ -45,13 +47,14 @@
     return antragsliste(daten, jahrVon(von), heute).find((z) => z.antrag.id === probe.id)?.rest ?? null;
   });
 
-  function baue(): Urlaubsantrag {
+  function baue(plan = istPlan): Urlaubsantrag {
     return {
       id: a0?.id ?? crypto.randomUUID(),
       von,
       bis,
       sonstiges: sonstiges.trim() || undefined,
       vertretung: vertretung.trim().toUpperCase() || undefined,
+      plan: plan && !genehmigt ? true : undefined,
       genehmigt,
       genehmigtAm: genehmigt ? genehmigtAm || undefined : undefined,
       gestrichen: a0?.gestrichen,
@@ -59,13 +62,14 @@
     };
   }
 
-  async function sichern(danachPdf = false) {
+  /** `beantragen`: aus dem Plan wird ein Antrag, danach das PDF */
+  async function sichern(beantragen = false, mitPdf = beantragen) {
     fehler = null;
-    const neu = baue();
+    const neu = baue(beantragen ? false : istPlan);
     const f = pruefeAntrag(neu, speicher.antraege);
     if (f) return (fehler = f);
     await speicher.speichereAntrag(neu, kalenderFuer(speicher.tage, a0 ?? null, neu, new Date().toISOString()));
-    if (danachPdf) pdf(neu);
+    if (mitPdf) pdf(neu);
     schliessen();
   }
 
@@ -94,7 +98,7 @@
   const zahl = (n: number) => String(n).replace('.', ',');
 </script>
 
-<Blatt titel={ansicht === 'streichen' ? 'Antrag streichen' : ansicht === 'loeschen' ? 'Antrag löschen?' : a0 ? 'Urlaubsantrag' : 'Neuer Urlaubsantrag'} {schliessen}>
+<Blatt titel={ansicht === 'streichen' ? 'Antrag streichen' : ansicht === 'loeschen' ? 'Antrag löschen?' : !a0 ? 'Neuer Urlaub' : istPlan ? 'Urlaub geplant' : 'Urlaubsantrag'} {schliessen}>
   {#if ansicht === 'streichen'}
     <p class="hinweistext mitte">{datumDE(von)} – {datumDE(bis)} · {zahl(tage)} {tage === 1 ? 'Tag' : 'Tage'}</p>
     <div class="gruppe">
@@ -133,15 +137,20 @@
         {/if}
       </div>
       <p class="hinweistext">
-        {genehmigt ? `Die Tage stehen als Urlaub im Kalender.` : 'Noch nicht genehmigt: Die Tage verringern den Rest, stehen aber noch nicht im Kalender.'}
+        {genehmigt
+          ? 'Die Tage stehen als Urlaub im Kalender.'
+          : istPlan
+            ? 'Nur geplant: Die Tage verringern den Rest, sind aber noch nicht beantragt und stehen nicht im PDF. „Beantragen und PDF“ macht daraus einen Antrag.'
+            : 'Noch nicht genehmigt: Die Tage verringern den Rest, stehen aber noch nicht im Kalender.'}
       </p>
     {/if}
     {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
     <button type="button" class="knopf haupt" onclick={() => sichern(false)}>Sichern</button>
-    <button type="button" class="knopf neben" onclick={() => sichern(true)}>Sichern und PDF</button>
-    {#if a0 && !gestrichen}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
+    <button type="button" class="knopf neben" onclick={() => sichern(istPlan, true)}>{istPlan ? 'Beantragen und PDF' : 'Sichern und PDF'}</button>
+    {#if a0 && istPlan}<button type="button" class="knopf neben rot" onclick={loeschen}>Plan löschen</button>{/if}
+    {#if a0 && !gestrichen && !istPlan}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
     {#if a0 && gestrichen}<button type="button" class="knopf neben" onclick={wiederaufnehmen}>Streichung aufheben</button>{/if}
-    {#if a0}<button type="button" class="textknopf" onclick={() => (ansicht = 'loeschen')}>Antrag löschen</button>{/if}
+    {#if a0 && !istPlan}<button type="button" class="textknopf" onclick={() => (ansicht = 'loeschen')}>Antrag löschen</button>{/if}
   {/if}
 </Blatt>
 

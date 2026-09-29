@@ -269,7 +269,7 @@ export function csvKonten(daten: Datenbestand, von: Datum, bis: Datum, heute: Da
   const zeilen = [
     ...k.zeitBuchungen.map((b) => ['Zeitkonto', b.datum, ART_NAMEN[b.art], hm(b.betrag, true), 'h:mm', buchungstext(b)]),
     ...k.urlaubBuchungen.map((b) => ['Urlaub', b.datum, ART_NAMEN[b.art], String(b.betrag).replace('.', ','), 'Tage', b.kommentar ?? '']),
-    ...k.urlaubszeitraeume.map((z) => ['Urlaub', z.von, z.geplant ? 'Urlaub geplant' : 'Urlaub genommen', String(-z.tage).replace('.', ','), 'Tage', `${datumDE(z.von)} – ${datumDE(z.bis)}`])
+    ...k.urlaubszeitraeume.map((z) => ['Urlaub', z.von, z.geplant ? 'Urlaub genehmigt' : 'Urlaub genommen', String(-z.tage).replace('.', ','), 'Tage', `${datumDE(z.von)} – ${datumDE(z.bis)}`])
   ].map((r) => r.map(zelle).join(';'));
   return '﻿' + [kopf.join(';'), ...zeilen].join('\r\n') + '\r\n';
 }

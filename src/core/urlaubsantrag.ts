@@ -1,15 +1,16 @@
-// Elektronischer Urlaubsantrag: beantragt → genehmigt (erst dann im Kalender) → ggf. gestrichen.
+// Elektronischer Urlaubsantrag: geplant → beantragt → genehmigt (erst dann im Kalender) → ggf. gestrichen.
 import { zeitraumSetzen } from './bearbeiten';
 import { urlaubskonto, urlaubszeitraeume } from './konten';
 import type { Datenbestand, Tag, Urlaubsantrag } from './modell';
 import { urlaubstagWert } from './regeln';
 import { type Datum, datumDE, jahrVon, tageVonBis } from './zeit';
 
-export type Antragsstatus = 'beantragt' | 'genehmigt' | 'gestrichen';
+export type Antragsstatus = 'geplant' | 'beantragt' | 'genehmigt' | 'gestrichen';
 
 export function antragsstatus(a: Urlaubsantrag): Antragsstatus {
   if (a.gestrichen) return 'gestrichen';
-  return a.genehmigt ? 'genehmigt' : 'beantragt';
+  if (a.genehmigt) return 'genehmigt';
+  return a.plan ? 'geplant' : 'beantragt';
 }
 
 /** Urlaubstage eines Zeitraums: ohne Wochenenden und Feiertage, 24.12./31.12. je ½. */
@@ -55,10 +56,10 @@ export function antragsliste(daten: Datenbestand, jahr: number, heute: Datum): A
     });
 }
 
-/** Beantragte, noch nicht genehmigte Tage eines Jahres (stehen noch nicht im Kalender). */
-export function offeneTage(daten: Datenbestand, jahr: number): number {
+/** Geplante oder beantragte, noch nicht genehmigte Tage eines Jahres (stehen noch nicht im Kalender). */
+export function offeneTage(daten: Datenbestand, jahr: number, status: 'beantragt' | 'geplant' = 'beantragt'): number {
   return (daten.antraege ?? [])
-    .filter((a) => jahrVon(a.von) === jahr && antragsstatus(a) === 'beantragt')
+    .filter((a) => jahrVon(a.von) === jahr && antragsstatus(a) === status)
     .reduce((s, a) => s + antragTage(a.von, a.bis), 0);
 }
 

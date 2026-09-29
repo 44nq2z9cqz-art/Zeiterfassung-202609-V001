@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { urlaubskonto } from '../src/core/konten';
 import type { Buchung, Urlaubsantrag } from '../src/core/modell';
-import { anspruch, antragTage, antraegeAusKalender, antragsliste, kalenderFuer, offeneTage, pruefeAntrag } from '../src/core/urlaubsantrag';
+import { anspruch, antragsstatus, antragTage, antraegeAusKalender, antragsliste, kalenderFuer, offeneTage, pruefeAntrag } from '../src/core/urlaubsantrag';
 import { tageVonBis } from '../src/core/zeit';
 import { arbeitstag, bestand, tagesart } from './hilfen';
 
@@ -35,6 +35,19 @@ describe('Urlaubsantrag', () => {
     ]);
     expect(offeneTage(daten, 2026)).toBe(10);
     expect(anspruch(daten, 2026, HEUTE)).toEqual({ resturlaub: 19, jahresurlaub: 31, sonderurlaub: 0, gesamt: 50 });
+  });
+
+  it('geplante Einträge zählen mit, erscheinen aber nicht im Kalender', () => {
+    const daten = bestand('2026-01-01', [], [rest19]);
+    const p = antrag('2026-12-21', '2026-12-23', { plan: true });
+    daten.antraege = [antrag('2026-11-02', '2026-11-13'), p];
+    const l = antragsliste(daten, 2026, HEUTE);
+    expect(l.map((z) => [z.status, z.rest])).toEqual([['beantragt', 40], ['geplant', 37]]);
+    expect(offeneTage(daten, 2026)).toBe(10);
+    expect(offeneTage(daten, 2026, 'geplant')).toBe(3);
+    expect(kalenderFuer(new Map(), null, p, AM).speichern).toHaveLength(0);
+    // genehmigt schlägt Plan
+    expect(antragsstatus({ ...p, genehmigt: true })).toBe('genehmigt');
   });
 
   it('prüft Zeitraum, Jahreswechsel und Überschneidungen', () => {
