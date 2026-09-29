@@ -488,7 +488,8 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
       tage(z.tage),
       tage(z.rest),
       t(z.antrag.vertretung ?? ''),
-      z.status === 'genehmigt' ? genehmiger : ''
+      // Es gibt nur eine genehmigende Person, das Kürzel steht daher immer da
+      genehmiger
     ]),
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 2.2, bottom: 1.5, left: 1.8, right: 1.8 }, textColor: NACHT, lineColor: [218, 219, 213], lineWidth: { bottom: 0.15 } },
     headStyles: { fillColor: NACHT, textColor: 255, fontStyle: 'bold', fontSize: 7, lineWidth: 0, cellPadding: { top: 1.8, bottom: 1.8, left: 1.2, right: 1.2 } },
