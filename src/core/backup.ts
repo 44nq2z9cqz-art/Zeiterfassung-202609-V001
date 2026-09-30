@@ -1,7 +1,7 @@
 // Backup und Wiederherstellung (Konzept A3, F): eine JSON-Datei mit allen Daten und Schema-Version.
 import { standardEinstellungen } from './einstellungen';
 import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from './modell';
-import { type Datum, jahrVon } from './zeit';
+import { type Datum, heute, jahrVon } from './zeit';
 
 export const BACKUP_FORMAT = 'zeiterfassung-202609';
 export const BACKUP_SCHEMA = 1;
@@ -89,8 +89,9 @@ export function pruefeBackup(json: unknown): Pruefergebnis {
   };
 }
 
-/** Tage seit dem letzten Backup (null = noch nie gesichert). */
+/** Kalendertage seit dem letzten Backup (null = noch nie gesichert). Gestern 18 Uhr zählt heute früh als „gestern“. */
 export function tageSeitBackup(letztesBackup: string | undefined, jetzt = new Date()): number | null {
   if (!letztesBackup) return null;
-  return Math.floor((jetzt.getTime() - Date.parse(letztesBackup)) / 86_400_000);
+  const tag = (d: Date) => Date.parse(heute(d) + 'T00:00:00Z');
+  return Math.round((tag(jetzt) - tag(new Date(letztesBackup))) / 86_400_000);
 }

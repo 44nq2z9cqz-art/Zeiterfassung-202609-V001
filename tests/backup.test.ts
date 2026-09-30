@@ -39,7 +39,10 @@ describe('F Backup', () => {
 
   it('Tage seit dem letzten Backup', () => {
     expect(tageSeitBackup(undefined)).toBeNull();
-    expect(tageSeitBackup('2026-09-20T10:00:00Z', new Date('2026-09-28T09:00:00Z'))).toBe(7);
+    expect(tageSeitBackup('2026-09-20T10:00:00Z', new Date('2026-09-28T09:00:00Z'))).toBe(8);
+    // Kalendertage statt 24-Stunden-Blöcke: gestern Abend ist heute früh „gestern“
+    expect(tageSeitBackup(new Date(2026, 8, 29, 18, 0).toISOString(), new Date(2026, 8, 30, 8, 0))).toBe(1);
+    expect(tageSeitBackup(new Date(2026, 8, 30, 7, 0).toISOString(), new Date(2026, 8, 30, 23, 0))).toBe(0);
   });
 });
 
