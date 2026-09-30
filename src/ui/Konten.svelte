@@ -93,22 +93,20 @@
   <span class="unter">Sockel <b>{dauer(teile.sockel)}</b> / {dauer(speicher.einstellungen.sockel)} · auszahlbar <b>{dauer(teile.auszahlbar)}</b></span>
 </section>
 
-<section class="gruppe" aria-label="Urlaub {jahr}">
-  <div class="zeile"><span class="etikett-hell">Urlaub {jahr}</span></div>
-  <div class="zeile oben">
-    <span class="l"><span class="num rest">{zahl(rest)}</span><span class="leise">Tage Rest</span></span>
-    <span class="w">{String(urlaub.gesamt).replace('.', ',')} gesamt</span>
+<section class="kachel urlaub" aria-label="Urlaub {jahr}">
+  <span class="etikett">Urlaub {jahr}</span>
+  <div class="kopfzeile">
+    <span class="restzahl"><span class="gross num">{zahl(rest)}</span><span>Tage Rest</span></span>
+    <span class="gesamt">{zahl(urlaub.gesamt)} gesamt</span>
   </div>
-  <div class="zeile">
-    <div class="urlaubsbalken" role="img" aria-label="genommen, genehmigt, beantragt, geplant und Rest">
-      <i style="width:{anteil(urlaub.genommen)}%;background:var(--night)"></i>
-      <i style="width:{anteil(urlaub.geplant)}%;background:var(--label3)"></i>
-      {#if offen + plan}<i class="schraffur" style="width:{anteil(offen + plan)}%"></i>{/if}
-      <i style="flex:1;background:var(--lemon)"></i>
-    </div>
+  <!-- Balken in weißer Rinne: genommen, genehmigt, beantragt/geplant (schraffiert); der Rest bleibt weiß -->
+  <div class="urlaubsbalken" role="img" aria-label="genommen, genehmigt, beantragt, geplant und Rest">
+    {#if urlaub.genommen}<i style="width:{anteil(urlaub.genommen)}%;background:var(--night)"></i>{/if}
+    {#if urlaub.geplant}<i style="width:{anteil(urlaub.geplant)}%;background:var(--label2)"></i>{/if}
+    {#if offen + plan}<i class="schraffur" style="width:{anteil(offen + plan)}%"></i>{/if}
   </div>
-  <button type="button" class="zeile" onclick={() => (uebersichtOffen = true)}>
-    <span class="l leise">{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} genehmigt{offen ? ` · ${zahl(offen)} beantragt` : ''}{plan ? ` · ${zahl(plan)} geplant` : ''}</span><span class="pfeil">›</span>
+  <button type="button" class="fusszeile" onclick={() => (uebersichtOffen = true)}>
+    <span>{zahl(urlaub.genommen)} genommen · {zahl(urlaub.geplant)} genehmigt{offen ? ` · ${zahl(offen)} beantragt` : ''}{plan ? ` · ${zahl(plan)} geplant` : ''}</span><span class="pfeil">›</span>
   </button>
 </section>
 
@@ -202,39 +200,69 @@
     margin: 0;
     line-height: 1.45;
   }
-  .etikett-hell {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--label2);
+  /* Urlaubskachel in Lemon mit dunkler Schrift (Entwurf „Vorschlag B“) */
+  .kachel.urlaub {
+    background: var(--lemon);
+    color: var(--night);
   }
-  .zeile.oben {
-    padding-top: 0;
+  .urlaub .etikett {
+    color: rgba(16, 19, 26, 0.62);
   }
-  .zeile.oben::before {
-    display: none;
+  .kopfzeile {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
   }
-  .rest {
-    font-size: 36px;
+  .restzahl {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-weight: 500;
+  }
+  .urlaub .gross {
+    color: var(--night);
+  }
+  .gesamt {
+    color: rgba(16, 19, 26, 0.62);
   }
   .urlaubsbalken {
-    flex: 1;
     display: flex;
     gap: 2px;
-    height: 7px;
+    height: 12px;
+    box-sizing: border-box;
+    padding: 2px;
     border-radius: 99px;
     overflow: hidden;
-    background: var(--fill);
+    background: #fff;
+    box-shadow: inset 0 0 0 1px rgba(16, 19, 26, 0.1);
   }
   .urlaubsbalken i {
     display: block;
     height: 100%;
   }
+  .urlaubsbalken i:first-child {
+    border-radius: 99px 0 0 99px;
+  }
+  .fusszeile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(16, 19, 26, 0.14);
+    font-size: 15px;
+    color: var(--night);
+    text-align: left;
+    font-variant-numeric: tabular-nums;
+  }
+  .fusszeile .pfeil {
+    color: rgba(16, 19, 26, 0.55);
+  }
   .pfeil {
     display: inline-block;
   }
   .schraffur {
-    background: repeating-linear-gradient(135deg, var(--label3) 0 2px, var(--group) 2px 5px);
+    background: repeating-linear-gradient(135deg, var(--label2) 0 2px, #fff 2px 5px);
   }
 </style>

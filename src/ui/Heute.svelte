@@ -61,6 +61,12 @@
   const pauseSekunden = $derived(pause?.gestartetAm ? Math.max(0, Math.floor((jetzt.getTime() - Date.parse(pause.gestartetAm)) / 1000)) : null);
   const kurz = (m: number) => (m % 60 === 0 ? String(m / 60) : uhrzeit(m));
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const hmmss = (s: number) => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  // Pausenmodus der Hauptkachel: alle Pausen des Tages, die laufende sekundengenau
+  const pausenSekunden = $derived(
+    (tag?.pausen ?? []).reduce((s, p) => s + (p.ende !== null ? (p.ende - p.beginn) * 60 : (pauseSekunden ?? (lauf.minute - p.beginn) * 60)), 0)
+  );
 
   // Zeitbalken der Pausenregel
   const fenster = $derived(stand?.fenster ?? null);
@@ -70,6 +76,13 @@
   const fensterVorbei = $derived(!!regel && begonnen && (beendet || lauf.minute >= regel.fensterEnde));
   const fehlend = $derived(fenster ? Math.max(fenster.fehlendGesamt, fenster.fehlendEinzel) : regel ? regel.mindestGesamt : 0);
   const greiftNicht = $derived(!!regel && begonnen && tag!.kommen! > regel.fensterBeginn);
+  // Ring in der Pause: im Regelfenster die Minuten dort, sonst alle Pausen des Tages – jeweils gegen 30 Min
+  const ringPause = $derived.by(() => {
+    const ziel = regel?.mindestGesamt ?? 30;
+    const imRegelfenster = !!regel && !greiftNicht && lauf.minute >= regel.fensterBeginn && lauf.minute < regel.fensterEnde;
+    const wert = imRegelfenster ? (fenster?.imFenster ?? 0) : Math.floor(pausenSekunden / 60);
+    return { anteil: wert / ziel, text: `${Math.min(wert, 999)}/${ziel}`, beschreibung: `${wert} von ${ziel} Minuten Pause${imRegelfenster ? ' im Regelfenster' : ''}` };
+  });
 
   const hinweisFenster = $derived(
     !!regel && begonnen && !beendet && !pause && !greiftNicht && e.hinweise.pausenfenster.aktiv &&
@@ -175,11 +188,14 @@
     </div>
   {/if}
 
-  <section class="kachel held" aria-label="Arbeitszeit heute">
+  <section class="kachel held" class:pausenmodus={!!pause} aria-label={pause ? 'Pausenzeit heute' : 'Arbeitszeit heute'}>
     <div class="text">
-      <span class="etikett">Arbeitszeit</span>
-      <span class="gross num">{dauer(stand?.ist ?? 0)}</span>
-      {#if !begonnen}
+      <span class="etikett">{pause ? 'Pausenzeit' : 'Arbeitszeit'}</span>
+      <span class="gross num">{pause ? hmmss(pausenSekunden) : dauer(stand?.ist ?? 0)}</span>
+      {#if pause}
+        <!-- Platzhalter: Überschrift und Zeit bleiben an derselben Stelle wie bei der Arbeitszeit -->
+        <span class="unter platzhalter" aria-hidden="true">&nbsp;</span>
+      {:else if !begonnen}
         <span class="unter">Soll <b>{dauer(soll)}</b>{soll === 0 ? ' · freier Tag' : ''}</span>
       {:else}
         <span class="unter">
@@ -187,7 +203,9 @@
         </span>
       {/if}
     </div>
-    {#if soll > 0 || begonnen}
+    {#if pause}
+      <Ring hell anteil={ringPause.anteil} text={ringPause.text} beschreibung={ringPause.beschreibung} />
+    {:else if soll > 0 || begonnen}
       <!-- Mitte: Tagessaldo (inkl. Zuschlag der Pausenregel, sobald er feststeht) -->
       <Ring
         anteil={soll > 0 ? (stand?.ist ?? 0) / soll : 1}
@@ -256,7 +274,7 @@
       <button type="button" class="knopf neben" disabled={beschaeftigt} onclick={aufFortsetzen}>Arbeitstag fortsetzen</button>
     {:else}
       {#if pause}
-        <button type="button" class="knopf haupt" disabled={beschaeftigt} onclick={aufPauseEnde}>Pause beenden</button>
+        <button type="button" class="knopf haupt pausenknopf" disabled={beschaeftigt} onclick={aufPauseEnde}>Pause beenden</button>
       {:else}
         <button type="button" class="knopf haupt" disabled={beschaeftigt} onclick={aufPauseStart}>Pause starten</button>
       {/if}
@@ -326,6 +344,28 @@
     flex-direction: row;
     align-items: center;
     gap: 16px;
+  }
+  /* Während einer Pause: Lemon-Kachel mit dunkler Schrift */
+  .held {
+    transition: background-color 0.35s ease, color 0.35s ease;
+  }
+  .held.pausenmodus {
+    background: var(--lemon);
+    color: var(--night);
+  }
+  .held.pausenmodus .etikett {
+    color: rgba(16, 19, 26, 0.62);
+  }
+  .held.pausenmodus .gross {
+    color: var(--night);
+  }
+  .platzhalter {
+    visibility: hidden;
+  }
+  .pausenknopf {
+    background: var(--lemon);
+    color: var(--night);
+    box-shadow: inset 0 0 0 1.5px rgba(16, 19, 26, 0.14);
   }
   .held .text {
     display: flex;
