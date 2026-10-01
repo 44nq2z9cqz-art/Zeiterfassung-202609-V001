@@ -6,6 +6,7 @@
   import { type Datum, datumDE, dauer, jahrVon, uhrzeit } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
   import { teileDatei } from '../lib/teilen';
+  import type { Teilbericht } from '../lib/pdf';
   import { symbole } from './symbole';
   import Titel from './Titel.svelte';
 
@@ -13,33 +14,36 @@
 
   type Bericht = 'nachweis' | 'kompakt' | 'detail' | 'konten' | 'jahr';
   const BERICHTE: Record<Zeitraumart, [Bericht, string, string][]> = {
+    // Reihenfolge = Reihenfolge im Sammelbericht (Kontenverlauf zuerst, Wunsch des Nutzers)
     tag: [['nachweis', 'Tagesnachweis', 'zum Nachtragen im Firmensystem']],
     woche: [
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
       ['kompakt', 'Wochenübersicht', 'eine Zeile pro Tag'],
       ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen']
     ],
     monat: [
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
       ['kompakt', 'Monatsjournal kompakt', 'eine Zeile pro Tag'],
-      ['detail', 'Monatsjournal detailliert', 'alle Stempelungen Kommen/Gehen'],
-      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+      ['detail', 'Monatsjournal detailliert', 'alle Stempelungen Kommen/Gehen']
     ],
     jahr: [
-      ['jahr', 'Jahresübersicht', 'je Monat, mit Konten'],
-      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
+      ['jahr', 'Jahresübersicht', 'je Monat; allein gewählt mit Konten']
     ],
     zeitraum: [
+      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
       ['kompakt', 'Übersicht kompakt', 'eine Zeile pro Tag'],
-      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen'],
-      ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen']
+      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen']
     ]
   };
+  const STANDARD: Record<Zeitraumart, Bericht[]> = { tag: ['nachweis'], woche: ['kompakt'], monat: ['kompakt'], jahr: ['jahr'], zeitraum: ['kompakt'] };
   const ARTEN: [Zeitraumart, string][] = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['zeitraum', 'Zeitraum']];
 
   let art = $state<Zeitraumart>('monat');
   let bezug = $state<Datum>(untrack(() => heute));
   let von = $state<Datum>(untrack(() => zeitraumFuer('monat', heute).von));
   let bis = $state<Datum>(untrack(() => heute));
-  let bericht = $state<Bericht>('kompakt');
+  let gewaehlt = $state<Bericht[]>(['kompakt']);
   let unterschrift = $state(true);
   let protokoll = $state(false);
   let meldung = $state<string | null>(null);
@@ -47,7 +51,7 @@
 
   function artWaehlen(a: Zeitraumart) {
     art = a;
-    bericht = BERICHTE[a][0][0];
+    gewaehlt = [...STANDARD[a]];
     meldung = null;
   }
 
@@ -81,14 +85,21 @@
     konten: 'Kontenverlauf',
     jahr: 'Jahresübersicht'
   };
-  const berichtTitel = $derived(
-    bericht === 'kompakt' ? (art === 'woche' ? 'Wochenübersicht' : art === 'monat' ? 'Monatsjournal kompakt' : 'Übersicht') : bericht === 'detail' && art === 'monat' ? 'Monatsjournal detailliert' : TITEL[bericht]
-  );
+  const titelFuer = (b: Bericht) =>
+    b === 'kompakt' ? (art === 'woche' ? 'Wochenübersicht' : art === 'monat' ? 'Monatsjournal kompakt' : 'Übersicht') : b === 'detail' && art === 'monat' ? 'Monatsjournal detailliert' : TITEL[b];
+  // Mehrere Häkchen ergeben einen Sammelbericht in der Reihenfolge der Liste
+  const auswahl = $derived(BERICHTE[art].map(([id]) => id).filter((id) => gewaehlt.includes(id)));
+  const einzeln = $derived(auswahl.length === 1 ? auswahl[0] : null);
+  const berichtTitel = $derived(einzeln ? titelFuer(einzeln) : 'Sammelbericht');
+  function umschalten(id: Bericht) {
+    gewaehlt = gewaehlt.includes(id) ? gewaehlt.filter((x) => x !== id) : [...gewaehlt, id];
+    meldung = null;
+  }
   const dateiname = (endung: string) =>
     `zeiterfassung-${berichtTitel.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-')}-${zeitraum.von}${zeitraum.bis !== zeitraum.von ? `-bis-${zeitraum.bis}` : ''}.${endung}`;
 
   async function exportieren(format: 'pdf' | 'csv') {
-    if (!gueltig || arbeitet) return;
+    if (!gueltig || arbeitet || !auswahl.length || (format === 'csv' && !einzeln)) return;
     arbeitet = true;
     meldung = null;
     try {
@@ -97,13 +108,16 @@
       let inhalt: Blob;
       if (format === 'pdf') {
         // PDF-Bibliothek erst bei Bedarf laden – hält den App-Start schnell
-        const { pdfDetail, pdfJahr, pdfKompakt, pdfKonten, pdfTagesnachweis } = await import('../lib/pdf');
-        if (bericht === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, { unterschrift, protokoll });
-        else if (bericht === 'detail') inhalt = pdfDetail(d, v, b, heute, berichtTitel, titel, { protokoll });
-        else if (bericht === 'konten') inhalt = pdfKonten(d, v, b, heute, titel);
-        else if (bericht === 'jahr') inhalt = pdfJahr(d, jahrVon(v), heute);
-        else inhalt = pdfKompakt(d, v, b, heute, berichtTitel, titel);
+        const { pdfSammlung, pdfTagesnachweis } = await import('../lib/pdf');
+        if (einzeln === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, { unterschrift, protokoll });
+        else {
+          const teile: Teilbericht[] = auswahl.map((x) =>
+            x === 'detail' ? { art: 'detail', titel: titelFuer(x), protokoll } : x === 'jahr' ? { art: 'jahr', jahr: jahrVon(v) } : x === 'konten' ? { art: 'konten' } : { art: 'kompakt', titel: titelFuer(x) }
+          );
+          inhalt = pdfSammlung(d, v, b, heute, titel, teile);
+        }
       } else {
+        const bericht = einzeln!;
         const text = bericht === 'jahr' ? csvJahr(d, jahrVon(v), heute) : bericht === 'konten' ? csvKonten(d, v, b, heute) : csvTage(d, v, b, heute);
         inhalt = new Blob([text], { type: 'text/csv;charset=utf-8' });
       }
@@ -167,23 +181,23 @@
   {/if}
 {/if}
 
-<h2 class="abschnitt">Bericht</h2>
+<h2 class="abschnitt">{BERICHTE[art].length > 1 ? 'Berichte · mehrere wählbar' : 'Bericht'}</h2>
 <div class="gruppe">
   {#each BERICHTE[art] as [id, name, info] (id)}
-    <button type="button" class="zeile" aria-pressed={bericht === id} onclick={() => (bericht = id)}>
+    <button type="button" class="zeile" aria-pressed={gewaehlt.includes(id)} onclick={() => umschalten(id)}>
       <span class="l">
-        {@html bericht === id ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}
+        {@html gewaehlt.includes(id) ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}
         <span>{name}<small>{info}</small></span>
       </span>
     </button>
   {/each}
-  {#if bericht === 'nachweis'}
+  {#if auswahl.includes('nachweis')}
     <label class="zeile">
       <span class="l">Mit Unterschriftsfeldern</span>
       <input type="checkbox" class="schalter" id="bericht-unterschrift" bind:checked={unterschrift} />
     </label>
   {/if}
-  {#if bericht === 'nachweis' || bericht === 'detail'}
+  {#if auswahl.includes('nachweis') || auswahl.includes('detail')}
     <label class="zeile">
       <span class="l"><span>Änderungsprotokoll einbeziehen<small>wann welche Zeit geändert wurde</small></span></span>
       <input type="checkbox" class="schalter" id="bericht-protokoll" bind:checked={protokoll} />
@@ -192,9 +206,10 @@
 </div>
 
 <div class="knoepfe">
-  <button type="button" class="knopf haupt" disabled={!gueltig || arbeitet} onclick={() => exportieren('pdf')}>{arbeitet ? 'Wird erstellt …' : 'PDF'}</button>
-  <button type="button" class="knopf neben" disabled={!gueltig || arbeitet} onclick={() => exportieren('csv')}>CSV</button>
+  <button type="button" class="knopf haupt" disabled={!gueltig || arbeitet || !auswahl.length} onclick={() => exportieren('pdf')}>{arbeitet ? 'Wird erstellt …' : 'PDF'}</button>
+  <button type="button" class="knopf neben" disabled={!gueltig || arbeitet || !einzeln} onclick={() => exportieren('csv')}>CSV</button>
 </div>
+{#if auswahl.length > 1}<p class="hinweistext mitte">{auswahl.length} Berichte in einem PDF, jeder ab einer neuen Seite. CSV nur für einen einzelnen Bericht.</p>{:else if !auswahl.length}<p class="hinweistext mitte">Bitte mindestens einen Bericht wählen.</p>{/if}
 {#if meldung}<p class="hinweistext mitte" role="status">{meldung}</p>{/if}
 <p class="hinweistext">PDF im Format A4 Hochformat. Über das Teilen-Menü lässt sich der Bericht in „Dateien“ sichern, per Mail senden oder drucken.</p>
 

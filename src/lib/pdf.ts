@@ -38,6 +38,12 @@ interface Kopf {
 function neuesDokument(daten: Datenbestand, kopf: Kopf) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   doc.setProperties({ title: `${kopf.titel} – ${kopf.unter}`, creator: 'Zeiterfassung' });
+  kopfZeichnen(doc, daten, kopf);
+  return doc;
+}
+
+/** Kopf auf der aktuellen Seite – auch für jeden Teil eines Sammelberichts. */
+function kopfZeichnen(doc: jsPDF, daten: Datenbestand, kopf: Kopf) {
   doc.setTextColor(...GRAU);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
@@ -62,7 +68,6 @@ function neuesDokument(daten: Datenbestand, kopf: Kopf) {
   doc.setDrawColor(...NACHT);
   doc.setLineWidth(0.6);
   doc.line(RAND, 32.5, 210 - RAND, 32.5);
-  return doc;
 }
 
 function abschliessen(doc: jsPDF, fussLinks?: string): Blob {
@@ -284,9 +289,8 @@ export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum
 
 // ─── Kompakt (Woche, Monat, Zeitraum) ────────────────────────────────────
 
-export function pdfKompakt(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, titel: string, unter: string): Blob {
+function kompaktTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum) {
   const { zeilen, summen } = berichtTage(daten, von, bis, heute);
-  const doc = neuesDokument(daten, { titel, unter });
   const sichtbar = zeilen.filter((z) => z.datum <= heute);
   tabelle(doc, {
     startY: 37,
@@ -313,7 +317,6 @@ export function pdfKompakt(daten: Datenbestand, von: Datum, bis: Datum, heute: D
   if (summen.urlaubstage || summen.krankheitstage) {
     absatz(doc, y, `${String(summen.urlaubstage).replace('.', ',')} Urlaubstage, ${summen.krankheitstage} Krankheitstage im Zeitraum.`, 'Abwesenheit:');
   }
-  return abschliessen(doc);
 }
 
 function zeitBuchungen(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, y: number): number {
@@ -331,9 +334,10 @@ function zeitBuchungen(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, 
 
 // ─── Detailliert ─────────────────────────────────────────────────────────
 
-export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, titel: string, unter: string, { protokoll = false }: Optionen = {}): Blob {
+const FUSS_DETAIL = () => `K = Kommen · G = Gehen · Erstellt am ${new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`;
+
+function detailTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, { protokoll = false }: Optionen = {}) {
   const { zeilen, summen } = berichtTage(daten, von, bis, heute);
-  const doc = neuesDokument(daten, { titel, unter });
   const sichtbar = zeilen.filter((z) => z.datum <= heute && (z.ist !== null || z.status !== 'frei'));
   const kg = (z: Berichtszeile) => {
     const s = stempelungen(z.tag).map((x) => `${uhrzeit(x.zeit)} ${x.art}`);
@@ -382,14 +386,13 @@ export function pdfDetail(daten: Datenbestand, von: Datum, bis: Datum, heute: Da
       });
     }
   }
-  return abschliessen(doc, `K = Kommen · G = Gehen · Erstellt am ${new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`);
 }
 
 // ─── Jahr ────────────────────────────────────────────────────────────────
 
-export function pdfJahr(daten: Datenbestand, jahr: number, heute: Datum): Blob {
+/** `mitKonten`: einzeln enthält die Jahresübersicht auch die Konten; im Sammelbericht steht der Kontenverlauf als eigener Teil. */
+function jahrTeil(doc: jsPDF, daten: Datenbestand, jahr: number, heute: Datum, mitKonten: boolean) {
   const monate = jahresuebersicht(daten, jahr, heute);
-  const doc = neuesDokument(daten, { titel: 'Jahresübersicht', unter: String(jahr) });
   const summe = monate.reduce(
     (s, m) => ({ tage: s.tage + m.anwesenheitstage, ist: s.ist + m.ist, soll: s.soll + m.soll, zuschlag: s.zuschlag + m.zuschlag, urlaub: s.urlaub + m.urlaub, saldo: s.saldo + m.saldo }),
     { tage: 0, ist: 0, soll: 0, zuschlag: 0, urlaub: 0, saldo: 0 }
@@ -405,16 +408,33 @@ export function pdfJahr(daten: Datenbestand, jahr: number, heute: Datum): Blob {
     foot: [['Summe', String(summe.tage), hm(summe.ist), hm(summe.soll), summe.zuschlag ? hm(-summe.zuschlag, true) : '', '', hm(summe.saldo, true), monate.length ? hm(monate.at(-1)!.saldoEnde, true) : '', String(summe.urlaub).replace('.', ','), '']],
     columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { fontSize: 7 } }
   });
-  kontenTeil(doc, daten, `${jahr}-01-01`, `${jahr}-12-31`, heute, ende(doc) + 8);
-  return abschliessen(doc);
+  if (mitKonten) kontenTeil(doc, daten, `${jahr}-01-01`, `${jahr}-12-31`, heute, ende(doc) + 8);
 }
 
 // ─── Kontenverlauf ───────────────────────────────────────────────────────
 
-export function pdfKonten(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, unter: string): Blob {
-  const doc = neuesDokument(daten, { titel: 'Kontenverlauf', unter });
-  kontenTeil(doc, daten, von, bis, heute, 40);
-  return abschliessen(doc);
+// ─── Sammelbericht ───────────────────────────────────────────────────────
+
+export type Teilbericht =
+  | { art: 'kompakt'; titel: string }
+  | { art: 'detail'; titel: string; protokoll?: boolean }
+  | { art: 'konten' }
+  | { art: 'jahr'; jahr: number };
+
+/** Mehrere Auswertungen in einem PDF: jede beginnt auf einer neuen Seite mit eigenem Kopf, die Seitenzahlen laufen durch. */
+export function pdfSammlung(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, unter: string, teile: Teilbericht[]): Blob {
+  const titelVon = (x: Teilbericht) => (x.art === 'konten' ? 'Kontenverlauf' : x.art === 'jahr' ? 'Jahresübersicht' : x.titel);
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  doc.setProperties({ title: `${teile.map(titelVon).join(', ')} – ${unter}`, creator: 'Zeiterfassung' });
+  teile.forEach((x, i) => {
+    if (i) doc.addPage();
+    kopfZeichnen(doc, daten, { titel: titelVon(x), unter });
+    if (x.art === 'kompakt') kompaktTeil(doc, daten, von, bis, heute);
+    else if (x.art === 'detail') detailTeil(doc, daten, von, bis, heute, { protokoll: x.protokoll });
+    else if (x.art === 'konten') kontenTeil(doc, daten, von, bis, heute, 40);
+    else jahrTeil(doc, daten, x.jahr, heute, teile.length === 1);
+  });
+  return abschliessen(doc, teile.some((x) => x.art === 'detail') ? FUSS_DETAIL() : undefined);
 }
 
 function kontenTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, y: number) {
