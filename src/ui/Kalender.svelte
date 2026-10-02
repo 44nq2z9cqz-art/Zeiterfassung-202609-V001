@@ -247,10 +247,10 @@
     color: var(--label3);
   }
   .tag.heute b {
-    box-shadow: inset 0 0 0 2px var(--night);
+    box-shadow: inset 0 0 0 2px var(--label);
   }
   .tag.gewaehlt b {
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
     font-weight: 700;
   }

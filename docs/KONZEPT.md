@@ -232,7 +232,10 @@ und im Detailbericht mit Begründung erklärt.
 
 ## E – Design (in Abstimmung)
 
-- ✅ **Heller Modus.**
+- ✅ **Heller Modus**, dazu ✅ **Dunkelmodus (v0.9.7):** Einstellungen → Darstellung: Hell (Standard), Dunkel oder Automatisch (folgt dem iPhone).
+  Fast schwarzer Grund, dunkle Kacheln mit feinem Lemon-Rand, Lemon-Flächen bleiben (Entwurf: Artifact „Dunkelmodus Zeiterfassung“).
+- ✅ **Überstunden in Euro (v0.9.6/0.9.7):** Bruttolohn und Abzugsquote in den Einstellungen; Tipp auf die Zeitkonto-Kachel zeigt 10 Sekunden lang Euro brutto
+  und für den auszahlbaren Teil eine Netto-Schätzung. Bericht „Arbeitsorte“ zählt Büro-, Homeoffice- und Außer-Haus-Tage.
 - ✅ **Farbschema:** Night Shift `#10131A` und Laser Lemon `#EFFF4F` (Entwurf B). Grundfläche `#F4F5F0`, Listen weiß.
   Laser Lemon steht nur auf dunklen Flächen oder als Knopffarbe mit dunkler Schrift, weil Gelb auf Weiß nicht lesbar ist.
 - ✅ **Stil:** elegant und nah an Apple (iOS 26). San Francisco als Schrift, große Titel, gruppierte Listen, runde Knöpfe, schwebende Tab-Leiste.

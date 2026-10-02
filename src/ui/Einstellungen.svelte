@@ -39,6 +39,18 @@
   // Bruttolohn: „4.250“, „4250,50“ oder „4 250 €“ – gespeichert als Zahl in Euro
   const bruttoAnzeige = (b?: number) => (b ? `${b.toLocaleString('de-DE')} €` : '');
   let bruttoText = $state(untrack(() => bruttoAnzeige(speicher.einstellungen.bruttolohn)));
+  const DARSTELLUNG: ['hell' | 'dunkel' | 'auto', string][] = [['hell', 'Hell'], ['dunkel', 'Dunkel'], ['auto', 'Automatisch']];
+  // Abzugsquote in Prozent (Steuer und Sozialabgaben auf eine Zusatzzahlung)
+  const abzugAnzeige = (q?: number) => (q !== undefined ? `${String(q).replace('.', ',')} %` : '');
+  let abzugText = $state(untrack(() => abzugAnzeige(speicher.einstellungen.abzugsquote)));
+  async function abzugSichern() {
+    const roh = abzugText.replace(/[%\s]/g, '').replace(',', '.');
+    const wert = roh === '' ? undefined : Number(roh);
+    if (wert !== undefined && (!Number.isFinite(wert) || wert < 0 || wert >= 100)) return (abzugText = abzugAnzeige(e.abzugsquote));
+    abzugText = abzugAnzeige(wert);
+    if (wert === e.abzugsquote) return;
+    await speicher.speichereEinstellungen({ ...e, abzugsquote: wert });
+  }
   async function bruttoSichern() {
     const roh = bruttoText.replace(/[€\s.]/g, '').replace(',', '.');
     const wert = roh === '' ? undefined : Number(roh);
@@ -138,6 +150,10 @@
           <span class="l"><span>Bruttolohn pro Monat<small>für Überstunden in Euro</small></span></span>
           <input class="eingabe" id="e-brutto" inputmode="decimal" placeholder="optional" bind:value={bruttoText} onblur={bruttoSichern} />
         </label>
+        <label class="zeile">
+          <span class="l"><span>Abzüge bei Auszahlung<small>Schätzung netto, z. B. 50 %</small></span></span>
+          <input class="eingabe" id="e-abzug" inputmode="decimal" placeholder="optional" bind:value={abzugText} onblur={abzugSichern} />
+        </label>
         <button type="button" class="zeile" onclick={() => (blatt = 'urlaubsanspruch')}>
           <span class="l"><span>Urlaubsanspruch pro Jahr{#if spaeter(e.urlaubsanspruch)}<small>ab {datumDE(spaeter(e.urlaubsanspruch)!.ab)}: {spaeter(e.urlaubsanspruch)!.wert} Tage</small>{/if}</span></span>
           <span class="w">{gueltigAm(e.urlaubsanspruch, heute)} Tage <span class="pfeil">›</span></span>
@@ -174,6 +190,14 @@
         </div>
       </div>
       <p class="hinweistext">Das Backup wird über das Teilen-Menü gesichert, am besten unter „In Dateien sichern“ → iCloud Drive.</p>
+
+      <h2 class="abschnitt">Darstellung</h2>
+      <div class="segmente" role="group" aria-label="Darstellung">
+        {#each DARSTELLUNG as [id, text] (id)}
+          <button type="button" aria-pressed={(e.darstellung ?? 'hell') === id} onclick={() => speicher.speichereEinstellungen({ ...e, darstellung: id })}>{text}</button>
+        {/each}
+      </div>
+      <p class="hinweistext">„Automatisch“ folgt der Einstellung des iPhones, also z. B. abends dunkel.</p>
 
       <h2 class="abschnitt">Für Berichte</h2>
       <div class="gruppe">

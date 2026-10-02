@@ -30,6 +30,21 @@
     return () => clearInterval(takt);
   });
 
+  // Darstellung hell/dunkel; „auto“ folgt der iPhone-Einstellung, auch beim Umschalten am Abend
+  let systemDunkel = $state(matchMedia('(prefers-color-scheme: dark)').matches);
+  onMount(() => {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const wechsel = () => (systemDunkel = mq.matches);
+    mq.addEventListener('change', wechsel);
+    return () => mq.removeEventListener('change', wechsel);
+  });
+  $effect(() => {
+    const d = speicher.einstellungen.darstellung ?? 'hell';
+    const dunkel = d === 'dunkel' || (d === 'auto' && systemDunkel);
+    document.documentElement.dataset.theme = dunkel ? 'dunkel' : 'hell';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dunkel ? '#0B0D12' : '#F4F5F0');
+  });
+
   const oeffneEinstellungen = () => (einstellungenOffen = true);
 
   /** Reiter wechseln und nach oben scrollen – bei erneutem Tippen sanft, wie bei iOS */
@@ -96,12 +111,12 @@
     width: min(528px, calc(100% - 32px));
     height: 64px;
     border-radius: 32px;
-    background: rgba(255, 255, 255, 0.82);
+    background: var(--glas);
     backdrop-filter: blur(20px) saturate(1.6);
     -webkit-backdrop-filter: blur(20px) saturate(1.6);
     box-shadow:
       0 10px 28px -12px rgba(16, 19, 26, 0.38),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+      inset 0 0 0 1px var(--glas-rand);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     padding: 6px;
@@ -119,7 +134,7 @@
     border-radius: 26px;
   }
   .tabs button.an {
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
   }
   .tabs :global(svg) {
@@ -140,7 +155,7 @@
     gap: 12px;
     padding: 10px 10px 10px 18px;
     border-radius: 999px;
-    background: var(--night);
+    background: var(--flaeche);
     color: #fff;
     font-weight: 600;
     font-size: 15px;

@@ -344,7 +344,7 @@
     color: var(--label2);
   }
   .marke {
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
     font-weight: 700;
     font-size: 13px;
@@ -450,10 +450,10 @@
     box-shadow: inset 0 1px 0 rgba(16, 19, 26, 0.12), inset 0 -1px 0 rgba(16, 19, 26, 0.12);
   }
   .leiste .pause {
-    background: var(--night);
+    background: var(--balken);
   }
   .leiste .kurz {
-    background: repeating-linear-gradient(135deg, var(--night) 0 2px, #fff 2px 5px);
+    background: repeating-linear-gradient(135deg, var(--balken) 0 2px, var(--group) 2px 5px);
   }
   .jetzt {
     position: absolute;
@@ -462,7 +462,7 @@
     width: 2px;
     margin-left: -1px;
     border-radius: 2px;
-    background: var(--night);
+    background: var(--label);
   }
   .bedingungen {
     display: flex;
@@ -492,7 +492,7 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
     display: inline-grid;
     place-items: center;
@@ -529,7 +529,7 @@
     gap: 10px;
     margin-top: 4px;
     padding-top: 14px;
-    background: linear-gradient(to bottom, rgba(244, 245, 240, 0), var(--bg) 14px);
+    background: linear-gradient(to bottom, transparent, var(--bg) 14px);
   }
   .knoepfe.einzeln {
     grid-template-columns: 1fr;
@@ -543,7 +543,7 @@
     left: 50%;
     transform: translateX(-50%);
     top: calc(var(--oben) + 10px);
-    background: var(--night);
+    background: var(--flaeche);
     color: #fff;
     border-radius: 999px;
     padding: 10px 18px;

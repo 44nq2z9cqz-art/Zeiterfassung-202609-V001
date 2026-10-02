@@ -177,7 +177,7 @@
   }
   .warnung {
     margin: 0;
-    background: #f6e3e1;
+    background: var(--warn-bg);
     color: var(--minus);
     border-radius: 12px;
     padding: 10px 14px;

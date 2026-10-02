@@ -217,7 +217,7 @@
     color: var(--label2);
   }
   .tag[aria-pressed='true'] {
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
   }
   .entfernen {

@@ -37,3 +37,12 @@ describe('Überstunden in Geld', () => {
     expect(stundenlohn(4000, 0)).toBe(0);
   });
 });
+
+describe('Netto-Schätzung', () => {
+  it('zieht die Abzugsquote ab', async () => {
+    const { nettoSchaetzung } = await import('../src/core/konten');
+    expect(nettoSchaetzung(1000, 50)).toBe(500);
+    expect(nettoSchaetzung(35, 47.5)).toBe(18);
+    expect(nettoSchaetzung(100, 0)).toBe(100);
+  });
+});

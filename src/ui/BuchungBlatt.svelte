@@ -167,7 +167,7 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
     font-weight: 700;
     font-size: 18px;

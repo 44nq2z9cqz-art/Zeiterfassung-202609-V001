@@ -100,6 +100,10 @@ export interface Einstellungen {
   name: string;
   personalnummer: string;
   hinweise: Hinweise;
+  /** Hell, Dunkel oder dem iPhone folgen (Standard hell) */
+  darstellung?: 'hell' | 'dunkel' | 'auto';
+  /** Abzüge auf eine Überstunden-Auszahlung in Prozent, für die Netto-Schätzung */
+  abzugsquote?: number;
   /** Monatsbrutto in Euro, nur für die Anzeige der Überstunden in Geld (bleibt auf dem Gerät) */
   bruttolohn?: number;
   /** Kürzel, das bei genehmigten Urlaubsanträgen erscheint */

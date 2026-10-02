@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { aufteilung, inEuro, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
+  import { aufteilung, inEuro, nettoSchaetzung, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
   import { gueltigAm } from '../core/einstellungen';
   import type { Buchung, Buchungsart, Konto } from '../core/modell';
   import BuchungBlatt from './BuchungBlatt.svelte';
@@ -40,6 +40,7 @@
   }
   $effect(() => () => clearTimeout(geldTimer));
   const brutto = $derived(speicher.einstellungen.bruttolohn ?? 0);
+  const abzug = $derived(speicher.einstellungen.abzugsquote);
   const wochenMinuten = $derived(gueltigAm(speicher.einstellungen.wochenstunden, heute));
   const euro = (min: number, vorzeichen = true) => {
     const b = inEuro(min, brutto, wochenMinuten);
@@ -119,7 +120,7 @@
   {#key geld}
     <span class="unter dreh">
       {#if geld && brutto}
-        Sockel <b>{euro(teile.sockel, false)}</b> · auszahlbar <b>{euro(teile.auszahlbar, false)}</b>
+        Sockel <b>{euro(teile.sockel, false)}</b> · auszahlbar <b>{euro(teile.auszahlbar, false)}</b>{#if abzug !== undefined}{' · netto ≈ '}<b>{nettoSchaetzung(inEuro(teile.auszahlbar, brutto, wochenMinuten), abzug).toLocaleString('de-DE')} €</b>{/if}
       {:else}
         Sockel <b>{dauer(teile.sockel)}</b> / {dauer(speicher.einstellungen.sockel)} · auszahlbar <b>{dauer(teile.auszahlbar)}</b>
       {/if}

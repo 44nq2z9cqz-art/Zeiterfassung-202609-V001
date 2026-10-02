@@ -47,7 +47,7 @@
     width: 38px;
     height: 5px;
     border-radius: 3px;
-    background: #c9cbc4;
+    background: var(--label3);
     margin: 0 auto;
     flex: none;
   }

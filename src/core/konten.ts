@@ -68,6 +68,11 @@ export function inEuro(minuten: Minuten, bruttoMonat: number, wochenMinuten: Min
   return Math.round((minuten / 60) * stundenlohn(bruttoMonat, wochenMinuten));
 }
 
+/** Geschätzter Nettobetrag einer Auszahlung bei pauschalen Abzügen in Prozent, auf ganze Euro gerundet. */
+export function nettoSchaetzung(bruttoEuro: number, abzugProzent: number): number {
+  return Math.round(bruttoEuro * (1 - abzugProzent / 100));
+}
+
 export function aufteilung(saldo: Minuten, sockel: Minuten) {
   return { sockel: Math.min(saldo, sockel), auszahlbar: Math.max(0, saldo - sockel) };
 }

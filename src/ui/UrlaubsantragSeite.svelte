@@ -125,7 +125,7 @@
     padding: 2px 7px;
   }
   .chip.genehmigt {
-    background: var(--night);
+    background: var(--flaeche);
     color: var(--lemon);
   }
   .chip.geplant {
@@ -138,7 +138,7 @@
     color: var(--label2);
   }
   .chip.gestrichen {
-    background: #f6e3e1;
+    background: var(--warn-bg);
     color: var(--minus);
   }
   .gestrichen .datum {
