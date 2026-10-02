@@ -4,6 +4,7 @@
   import type { Buchung, Buchungsart, Konto } from '../core/modell';
   import BuchungBlatt from './BuchungBlatt.svelte';
   import UrlaubsantragSeite from './UrlaubsantragSeite.svelte';
+  import AuszahlungBlatt from './AuszahlungBlatt.svelte';
   import { offeneTage } from '../core/urlaubsantrag';
   import { laufenderTag, liveStand } from '../core/stempeln';
   import { type Datum, datumDE, dauer, jahrVon, plusTage } from '../core/zeit';
@@ -56,6 +57,7 @@
   const plan = $derived(offeneTage(speicher.daten, jahr, 'geplant'));
   const rest = $derived(urlaub.rest - offen - plan);
   let antraegeOffen = $state(false);
+  let auszahlungOffen = $state(false);
   const antraegeJahr = $derived(speicher.antraege.filter((a) => jahrVon(a.von) === jahr));
   const anzahlOffen = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen && !a.plan).length);
   const anzahlPlan = $derived(antraegeJahr.filter((a) => !a.genehmigt && !a.gestrichen && a.plan).length);
@@ -223,6 +225,17 @@
 
 {#if antraegeOffen}
   <UrlaubsantragSeite {jahr} {heute} schliessen={() => (antraegeOffen = false)} />
+{/if}
+
+<section class="gruppe" aria-label="Auszahlung von Überstunden">
+  <button type="button" class="zeile" onclick={() => (auszahlungOffen = true)}>
+    <span class="l"><b>Antrag auf Auszahlung von Überstunden</b></span>
+    <span class="pfeil">›</span>
+  </button>
+</section>
+
+{#if auszahlungOffen}
+  <AuszahlungBlatt {heute} schliessen={() => (auszahlungOffen = false)} />
 {/if}
 
 {#if bearbeiten}
