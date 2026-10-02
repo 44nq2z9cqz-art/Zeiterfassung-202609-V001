@@ -204,6 +204,47 @@ export function jahresuebersicht(daten: Datenbestand, jahr: number, heute: Datum
   return liste;
 }
 
+// ─── Arbeitsorte (Büro- und Homeoffice-Tage, z. B. für die Steuererklärung) ──
+
+export interface Ortezeile {
+  /** Monatsname bzw. Zeitraum */
+  name: string;
+  buero: number;
+  homeoffice: number;
+  ausser_haus: number;
+  /** Tage mit gestempelter Arbeitszeit */
+  arbeitstage: number;
+}
+
+export interface Arbeitsorte {
+  monate: Ortezeile[];
+  summe: Ortezeile;
+  /** Tage außerhalb des Büros mit Anlass, für den Nachweis */
+  auswaerts: { datum: Datum; ort: string; anlass: string }[];
+}
+
+/** Zählt gearbeitete Tage (mit Kommen und Gehen) nach Arbeitsort, je Monat. */
+export function arbeitsorte(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum): Arbeitsorte {
+  const ende = bis < heute ? bis : heute;
+  const leer = (name: string): Ortezeile => ({ name, buero: 0, homeoffice: 0, ausser_haus: 0, arbeitstage: 0 });
+  const summe = leer('Summe');
+  const monate = new Map<string, Ortezeile>();
+  const auswaerts: Arbeitsorte['auswaerts'] = [];
+  if (von > ende) return { monate: [], summe, auswaerts };
+  for (const z of berichtTage(daten, von, ende, heute).zeilen) {
+    if (z.ist === null || !z.tag) continue;
+    const [j, m] = zerlege(z.datum);
+    const schluessel = `${j}-${m}`;
+    if (!monate.has(schluessel)) monate.set(schluessel, leer(`${MONATE[m - 1]} ${j}`));
+    for (const zeile of [monate.get(schluessel)!, summe]) {
+      zeile[z.tag.arbeitsort]++;
+      zeile.arbeitstage++;
+    }
+    if (z.tag.arbeitsort !== 'buero') auswaerts.push({ datum: z.datum, ort: ORTE[z.tag.arbeitsort], anlass: z.tag.anlass ?? '' });
+  }
+  return { monate: [...monate.values()], summe, auswaerts };
+}
+
 export function kontenverlauf(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum) {
   const zeit = daten.buchungen.filter((b) => b.konto === 'zeit' && b.datum >= von && b.datum <= bis).sort((a, b) => a.datum.localeCompare(b.datum));
   const jahr = jahrVon(bis);
@@ -260,6 +301,13 @@ export function csvJahr(daten: Datenbestand, jahr: number, heute: Datum): string
   const zeilen = jahresuebersicht(daten, jahr, heute).map((m) =>
     [m.name, m.anwesenheitstage, hm(m.ist), hm(m.soll), m.zuschlag, hm(m.buchungen, true), hm(m.saldo, true), hm(m.saldoEnde, true), String(m.urlaub).replace('.', ','), m.krank, m.gleittage].map(zelle).join(';')
   );
+  return '﻿' + [kopf.join(';'), ...zeilen].join('\r\n') + '\r\n';
+}
+
+export function csvOrte(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum): string {
+  const o = arbeitsorte(daten, von, bis, heute);
+  const kopf = ['Monat', 'Büro', 'Homeoffice', 'Außer Haus', 'Arbeitstage'];
+  const zeilen = [...o.monate, o.summe].map((r) => [r.name, r.buero, r.homeoffice, r.ausser_haus, r.arbeitstage].map(zelle).join(';'));
   return '﻿' + [kopf.join(';'), ...zeilen].join('\r\n') + '\r\n';
 }
 

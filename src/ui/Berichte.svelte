@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { ORTE, setzeArbeitsort } from '../core/bearbeiten';
-  import { berichtTage, blaettere, csvJahr, csvKonten, csvTage, type Zeitraumart, zeitraumFuer } from '../core/berichte';
+  import { berichtTage, blaettere, csvJahr, csvKonten, csvOrte, csvTage, type Zeitraumart, zeitraumFuer } from '../core/berichte';
   import type { Arbeitsort } from '../core/modell';
   import { type Datum, datumDE, dauer, jahrVon, uhrzeit } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
@@ -12,7 +12,7 @@
 
   let { heute, oeffneEinstellungen }: { heute: Datum; oeffneEinstellungen: () => void } = $props();
 
-  type Bericht = 'nachweis' | 'kompakt' | 'detail' | 'konten' | 'jahr';
+  type Bericht = 'nachweis' | 'kompakt' | 'detail' | 'konten' | 'jahr' | 'orte';
   const BERICHTE: Record<Zeitraumart, [Bericht, string, string][]> = {
     // Reihenfolge = Reihenfolge im Sammelbericht (Kontenverlauf zuerst, Wunsch des Nutzers)
     tag: [['nachweis', 'Tagesnachweis', 'zum Nachtragen im Firmensystem']],
@@ -24,16 +24,19 @@
     monat: [
       ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
       ['kompakt', 'Monatsjournal kompakt', 'eine Zeile pro Tag'],
-      ['detail', 'Monatsjournal detailliert', 'alle Stempelungen Kommen/Gehen']
+      ['detail', 'Monatsjournal detailliert', 'alle Stempelungen Kommen/Gehen'],
+      ['orte', 'Arbeitsorte', 'Büro- und Homeoffice-Tage']
     ],
     jahr: [
       ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
-      ['jahr', 'Jahresübersicht', 'je Monat; allein gewählt mit Konten']
+      ['jahr', 'Jahresübersicht', 'je Monat; allein gewählt mit Konten'],
+      ['orte', 'Arbeitsorte', 'Büro- und Homeoffice-Tage, z. B. für die Steuer']
     ],
     zeitraum: [
       ['konten', 'Kontenverlauf', 'Zeitkonto und Urlaub mit Buchungen'],
       ['kompakt', 'Übersicht kompakt', 'eine Zeile pro Tag'],
-      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen']
+      ['detail', 'Detailnachweis', 'alle Stempelungen Kommen/Gehen'],
+      ['orte', 'Arbeitsorte', 'Büro- und Homeoffice-Tage']
     ]
   };
   const STANDARD: Record<Zeitraumart, Bericht[]> = { tag: ['nachweis'], woche: ['kompakt'], monat: ['kompakt'], jahr: ['jahr'], zeitraum: ['kompakt'] };
@@ -83,7 +86,8 @@
     kompakt: 'Übersicht',
     detail: 'Detailnachweis',
     konten: 'Kontenverlauf',
-    jahr: 'Jahresübersicht'
+    jahr: 'Jahresübersicht',
+    orte: 'Arbeitsorte'
   };
   const titelFuer = (b: Bericht) =>
     b === 'kompakt' ? (art === 'woche' ? 'Wochenübersicht' : art === 'monat' ? 'Monatsjournal kompakt' : 'Übersicht') : b === 'detail' && art === 'monat' ? 'Monatsjournal detailliert' : TITEL[b];
@@ -112,13 +116,13 @@
         if (einzeln === 'nachweis') inhalt = pdfTagesnachweis(d, v, heute, { unterschrift, protokoll });
         else {
           const teile: Teilbericht[] = auswahl.map((x) =>
-            x === 'detail' ? { art: 'detail', titel: titelFuer(x), protokoll } : x === 'jahr' ? { art: 'jahr', jahr: jahrVon(v) } : x === 'konten' ? { art: 'konten' } : { art: 'kompakt', titel: titelFuer(x) }
+            x === 'detail' ? { art: 'detail', titel: titelFuer(x), protokoll } : x === 'jahr' ? { art: 'jahr', jahr: jahrVon(v) } : x === 'konten' ? { art: 'konten' } : x === 'orte' ? { art: 'orte' } : { art: 'kompakt', titel: titelFuer(x) }
           );
           inhalt = pdfSammlung(d, v, b, heute, titel, teile);
         }
       } else {
         const bericht = einzeln!;
-        const text = bericht === 'jahr' ? csvJahr(d, jahrVon(v), heute) : bericht === 'konten' ? csvKonten(d, v, b, heute) : csvTage(d, v, b, heute);
+        const text = bericht === 'jahr' ? csvJahr(d, jahrVon(v), heute) : bericht === 'konten' ? csvKonten(d, v, b, heute) : bericht === 'orte' ? csvOrte(d, v, b, heute) : csvTage(d, v, b, heute);
         inhalt = new Blob([text], { type: 'text/csv;charset=utf-8' });
       }
       const r = await teileDatei(inhalt, dateiname(format));

@@ -36,6 +36,17 @@
 
   const regel = $derived(gueltigAm(e.pausenregel, heute));
   const gesetzAn = $derived(gesetzAktiv(heute, e));
+  // Bruttolohn: „4.250“, „4250,50“ oder „4 250 €“ – gespeichert als Zahl in Euro
+  const bruttoAnzeige = (b?: number) => (b ? `${b.toLocaleString('de-DE')} €` : '');
+  let bruttoText = $state(untrack(() => bruttoAnzeige(speicher.einstellungen.bruttolohn)));
+  async function bruttoSichern() {
+    const roh = bruttoText.replace(/[€\s.]/g, '').replace(',', '.');
+    const wert = roh === '' ? undefined : Number(roh);
+    if (wert !== undefined && (!Number.isFinite(wert) || wert < 0)) return (bruttoText = bruttoAnzeige(e.bruttolohn));
+    bruttoText = bruttoAnzeige(wert);
+    if (wert === e.bruttolohn) return;
+    await speicher.speichereEinstellungen({ ...e, bruttolohn: wert });
+  }
   async function gesetzUmschalten(ev: Event) {
     const an = (ev.currentTarget as HTMLInputElement).checked;
     await speicher.speichereEinstellungen({ ...e, pausenGesetz: [{ ab: '2000-01-01', wert: an }] });
@@ -123,6 +134,10 @@
         <button type="button" class="zeile" onclick={() => (blatt = 'sockel')}>
           <span class="l">Sockel Zeitkonto</span><span class="w">{dauer(e.sockel)} <span class="pfeil">›</span></span>
         </button>
+        <label class="zeile">
+          <span class="l"><span>Bruttolohn pro Monat<small>für Überstunden in Euro</small></span></span>
+          <input class="eingabe" id="e-brutto" inputmode="decimal" placeholder="optional" bind:value={bruttoText} onblur={bruttoSichern} />
+        </label>
         <button type="button" class="zeile" onclick={() => (blatt = 'urlaubsanspruch')}>
           <span class="l"><span>Urlaubsanspruch pro Jahr{#if spaeter(e.urlaubsanspruch)}<small>ab {datumDE(spaeter(e.urlaubsanspruch)!.ab)}: {spaeter(e.urlaubsanspruch)!.wert} Tage</small>{/if}</span></span>
           <span class="w">{gueltigAm(e.urlaubsanspruch, heute)} Tage <span class="pfeil">›</span></span>

@@ -8,6 +8,7 @@ import {
   type Berichtszeile,
   berichtTage,
   buchungstext,
+  arbeitsorte,
   jahresuebersicht,
   kontenverlauf,
   stempelungen,
@@ -427,11 +428,12 @@ export type Teilbericht =
   | { art: 'kompakt'; titel: string }
   | { art: 'detail'; titel: string; protokoll?: boolean }
   | { art: 'konten' }
-  | { art: 'jahr'; jahr: number };
+  | { art: 'jahr'; jahr: number }
+  | { art: 'orte' };
 
 /** Mehrere Auswertungen in einem PDF: jede beginnt auf einer neuen Seite mit eigenem Kopf, die Seitenzahlen laufen durch. */
 export function pdfSammlung(daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, unter: string, teile: Teilbericht[]): Blob {
-  const titelVon = (x: Teilbericht) => (x.art === 'konten' ? 'Kontenverlauf' : x.art === 'jahr' ? 'Jahresübersicht' : x.titel);
+  const titelVon = (x: Teilbericht) => (x.art === 'konten' ? 'Kontenverlauf' : x.art === 'jahr' ? 'Jahresübersicht' : x.art === 'orte' ? 'Arbeitsorte' : x.titel);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   doc.setProperties({ title: `${teile.map(titelVon).join(', ')} – ${unter}`, creator: 'Zeiterfassung' });
   teile.forEach((x, i) => {
@@ -440,9 +442,40 @@ export function pdfSammlung(daten: Datenbestand, von: Datum, bis: Datum, heute: 
     if (x.art === 'kompakt') kompaktTeil(doc, daten, von, bis, heute);
     else if (x.art === 'detail') detailTeil(doc, daten, von, bis, heute, { protokoll: x.protokoll });
     else if (x.art === 'konten') kontenTeil(doc, daten, von, bis, heute, 40);
+    else if (x.art === 'orte') orteTeil(doc, daten, von, bis, heute);
     else jahrTeil(doc, daten, x.jahr, heute, teile.length === 1);
   });
   return abschliessen(doc, teile.some((x) => x.art === 'detail') ? FUSS_DETAIL() : undefined);
+}
+
+/** Büro-, Homeoffice- und Außer-Haus-Tage je Monat, dazu die Tage außerhalb des Büros mit Anlass. */
+function orteTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum) {
+  const o = arbeitsorte(daten, von, bis, heute);
+  let y = kaestchen(doc, 38, [
+    ['Bürotage', String(o.summe.buero)],
+    ['Homeoffice-Tage', String(o.summe.homeoffice)],
+    ['Außer Haus', String(o.summe.ausser_haus)],
+    ['Arbeitstage', String(o.summe.arbeitstage)]
+  ]);
+  tabelle(doc, {
+    startY: y + 6,
+    head: [['Monat', 'Büro', 'Homeoffice', 'Außer Haus', 'Arbeitstage']],
+    body: o.monate.map((m) => [m.name, String(m.buero), String(m.homeoffice), String(m.ausser_haus), String(m.arbeitstage)]),
+    foot: [['Summe', String(o.summe.buero), String(o.summe.homeoffice), String(o.summe.ausser_haus), String(o.summe.arbeitstage)]],
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } }
+  });
+  y = ende(doc) + 8;
+  if (o.auswaerts.length) {
+    y = zwischentitel(doc, y, 'Tage außerhalb des Büros');
+    tabelle(doc, {
+      startY: y + 1,
+      head: [['Datum', 'Arbeitsort', 'Anlass']],
+      body: o.auswaerts.map((a) => [`${datumDE(a.datum)} ${WOCHENTAGE[wochentag(a.datum)].slice(0, 2)}`, t(a.ort), t(a.anlass)]),
+      columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 32 } }
+    });
+    y = ende(doc) + 6;
+  }
+  absatz(doc, y, 'Gezählt werden Tage mit gestempelter Arbeitszeit, je nach dem in der App gewählten Arbeitsort. Für die Steuererklärung: Homeoffice-Tage für die Tagespauschale, Bürotage für die Entfernungspauschale.', 'Hinweis:');
 }
 
 function kontenTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heute: Datum, y: number) {

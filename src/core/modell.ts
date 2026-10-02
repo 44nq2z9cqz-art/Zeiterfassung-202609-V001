@@ -100,6 +100,8 @@ export interface Einstellungen {
   name: string;
   personalnummer: string;
   hinweise: Hinweise;
+  /** Monatsbrutto in Euro, nur für die Anzeige der Überstunden in Geld (bleibt auf dem Gerät) */
+  bruttolohn?: number;
   /** Kürzel, das bei genehmigten Urlaubsanträgen erscheint */
   genehmiger?: string;
 }

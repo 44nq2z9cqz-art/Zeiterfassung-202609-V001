@@ -54,6 +54,20 @@ export function tagesreihe(daten: Datenbestand, von: Datum, bis: Datum, heuteDat
 }
 
 /** Aufteilung für die Anzeige: Sockel und auszahlbarer Teil (rein optisch). */
+/**
+ * Brutto-Stundenlohn aus dem Monatsbrutto: Ein Monat hat im Schnitt 13/3 Wochen
+ * (52 Wochen / 12 Monate), bei 40 Std. also 173,3 Stunden.
+ */
+export function stundenlohn(bruttoMonat: number, wochenMinuten: Minuten): number {
+  const stundenMonat = (wochenMinuten / 60) * (13 / 3);
+  return stundenMonat > 0 ? bruttoMonat / stundenMonat : 0;
+}
+
+/** Zeit in Euro (brutto), auf ganze Euro gerundet. */
+export function inEuro(minuten: Minuten, bruttoMonat: number, wochenMinuten: Minuten): number {
+  return Math.round((minuten / 60) * stundenlohn(bruttoMonat, wochenMinuten));
+}
+
 export function aufteilung(saldo: Minuten, sockel: Minuten) {
   return { sockel: Math.min(saldo, sockel), auszahlbar: Math.max(0, saldo - sockel) };
 }

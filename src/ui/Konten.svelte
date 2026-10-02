@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { aufteilung, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
+  import { aufteilung, inEuro, urlaubskonto, urlaubszeitraeume, zeitkontoSaldo } from '../core/konten';
+  import { gueltigAm } from '../core/einstellungen';
   import type { Buchung, Buchungsart, Konto } from '../core/modell';
   import BuchungBlatt from './BuchungBlatt.svelte';
   import UrlaubsantragSeite from './UrlaubsantragSeite.svelte';
@@ -29,7 +30,22 @@
     return live ? saldoGestern + live.saldo + zeitkontoSaldo(speicher.daten, heute, heute) - zeitkontoSaldo(speicher.daten, gestern, heute) : zeitkontoSaldo(speicher.daten, heute, heute);
   });
   const teile = $derived(aufteilung(saldoGestern, speicher.einstellungen.sockel));
-  const sockelProzent = $derived(Math.max(0, Math.min(100, (teile.sockel / speicher.einstellungen.sockel) * 100)));
+  // Überstunden in Geld: nach einem Tipp 10 Sekunden lang in Euro (brutto)
+  let geld = $state(false);
+  let geldTimer: ReturnType<typeof setTimeout> | undefined;
+  function geldZeigen() {
+    clearTimeout(geldTimer);
+    geld = !geld;
+    if (geld) geldTimer = setTimeout(() => (geld = false), 10_000);
+  }
+  $effect(() => () => clearTimeout(geldTimer));
+  const brutto = $derived(speicher.einstellungen.bruttolohn ?? 0);
+  const wochenMinuten = $derived(gueltigAm(speicher.einstellungen.wochenstunden, heute));
+  const euro = (min: number, vorzeichen = true) => {
+    const b = inEuro(min, brutto, wochenMinuten);
+    return `${b > 0 && vorzeichen ? '+' : b < 0 ? '−' : ''}${Math.abs(b).toLocaleString('de-DE')} €`;
+  };
+  const sockelProzent =$derived(Math.max(0, Math.min(100, (teile.sockel / speicher.einstellungen.sockel) * 100)));
 
   const jahr = $derived(jahrVon(heute));
   const urlaub = $derived(urlaubskonto(speicher.daten, jahr, heute));
@@ -85,13 +101,31 @@
   </div>
 {/if}
 
-<section class="kachel" aria-label="Zeitkonto">
-  <span class="etikett">Zeitkonto</span>
-  <span class="gross num">{dauer(saldoGestern, true)}</span>
-  <span class="unter">inkl. heute <b>{dauer(saldoHeute, true)}</b></span>
+<!-- Ein Tipp blättert die Zeiten für 10 Sekunden in Euro (brutto) um -->
+<button type="button" class="kachel zeitkonto" aria-label="Zeitkonto, antippen für den Betrag in Euro" onclick={geldZeigen}>
+  <span class="etikett">Zeitkonto{geld ? ' · in Euro brutto' : ''}</span>
+  {#key geld}
+    <span class="dreh">
+      {#if geld}
+        <span class="gross num">{brutto ? euro(saldoGestern) : '– €'}</span>
+        <span class="unter">{brutto ? 'inkl. heute ' : 'Bruttolohn in den Einstellungen eintragen'}{#if brutto}<b>{euro(saldoHeute)}</b>{/if}</span>
+      {:else}
+        <span class="gross num">{dauer(saldoGestern, true)}</span>
+        <span class="unter">inkl. heute <b>{dauer(saldoHeute, true)}</b></span>
+      {/if}
+    </span>
+  {/key}
   <div class="balken" role="img" aria-label="Sockel {sockelProzent.toFixed(0)} Prozent gefüllt"><i style="width:{sockelProzent}%"></i></div>
-  <span class="unter">Sockel <b>{dauer(teile.sockel)}</b> / {dauer(speicher.einstellungen.sockel)} · auszahlbar <b>{dauer(teile.auszahlbar)}</b></span>
-</section>
+  {#key geld}
+    <span class="unter dreh">
+      {#if geld && brutto}
+        Sockel <b>{euro(teile.sockel, false)}</b> · auszahlbar <b>{euro(teile.auszahlbar, false)}</b>
+      {:else}
+        Sockel <b>{dauer(teile.sockel)}</b> / {dauer(speicher.einstellungen.sockel)} · auszahlbar <b>{dauer(teile.auszahlbar)}</b>
+      {/if}
+    </span>
+  {/key}
+</button>
 
 <section class="kachel urlaub" aria-label="Urlaub {jahr}">
   <span class="etikett">Urlaub {jahr}</span>
@@ -199,6 +233,35 @@
   .leer p {
     margin: 0;
     line-height: 1.45;
+  }
+  /* Zeitkonto: ganze Kachel ist ein Knopf, Tipp blättert in Euro um */
+  .zeitkonto {
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    border: none;
+    cursor: pointer;
+  }
+  .dreh {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transform-origin: 50% 50%;
+    animation: blaettern 0.45s ease;
+  }
+  span.unter.dreh {
+    display: block;
+  }
+  @keyframes blaettern {
+    from {
+      transform: perspective(400px) rotateX(-90deg);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
   }
   /* Urlaubskachel in Lemon mit dunkler Schrift (Entwurf „Vorschlag B“) */
   .kachel.urlaub {
