@@ -104,12 +104,17 @@
 
 <!-- Ein Tipp blättert die Zeiten für 10 Sekunden in Euro (brutto) um -->
 <button type="button" class="kachel zeitkonto" aria-label="Zeitkonto, antippen für den Betrag in Euro" onclick={geldZeigen}>
-  <span class="etikett">Zeitkonto{geld ? ' · in Euro brutto' : ''}</span>
+  <span class="etikett">{geld ? 'Auszahlbar in Euro brutto' : 'Zeitkonto'}</span>
   {#key geld}
     <span class="dreh">
       {#if geld}
-        <span class="gross num">{brutto ? euro(saldoGestern) : '– €'}</span>
-        <span class="unter">{brutto ? 'inkl. heute ' : 'Bruttolohn in den Einstellungen eintragen'}{#if brutto}<b>{euro(saldoHeute)}</b>{/if}</span>
+        <!-- Nur der Teil über dem Sockel, der ausgezahlt werden kann -->
+        <span class="gross num">{brutto ? euro(teile.auszahlbar, false) : '– €'}</span>
+        <span class="unter">
+          {#if !brutto}Bruttolohn in den Einstellungen eintragen
+          {:else if abzug !== undefined}netto ≈ <b>{nettoSchaetzung(inEuro(teile.auszahlbar, brutto, wochenMinuten), abzug).toLocaleString('de-DE')} €</b>
+          {:else}Abzüge in den Einstellungen eintragen für eine Netto-Schätzung{/if}
+        </span>
       {:else}
         <span class="gross num">{dauer(saldoGestern, true)}</span>
         <span class="unter">inkl. heute <b>{dauer(saldoHeute, true)}</b></span>
@@ -120,7 +125,7 @@
   {#key geld}
     <span class="unter dreh">
       {#if geld && brutto}
-        Sockel <b>{euro(teile.sockel, false)}</b> · auszahlbar <b>{euro(teile.auszahlbar, false)}</b>{#if abzug !== undefined}{' · netto ≈ '}<b>{nettoSchaetzung(inEuro(teile.auszahlbar, brutto, wochenMinuten), abzug).toLocaleString('de-DE')} €</b>{/if}
+        aus <b>{dauer(teile.auszahlbar)}</b> Std. über dem Sockel von {dauer(speicher.einstellungen.sockel)}
       {:else}
         Sockel <b>{dauer(teile.sockel)}</b> / {dauer(speicher.einstellungen.sockel)} · auszahlbar <b>{dauer(teile.auszahlbar)}</b>
       {/if}
