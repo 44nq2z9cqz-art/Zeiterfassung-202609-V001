@@ -208,6 +208,18 @@
           {/if}
         </div>
       {/if}
+      {#if erg.gesetz?.erreicht}
+        <div class="gruppe">
+          {#if erg.gesetz.zuschlag > 0}
+            <div class="zeile">
+              <span class="l"><span class="plakette">!</span><span>Gesetzliche Pause ab 9 Std.<small>{erg.gesetz.pause} von 45 Min Pause</small></span></span>
+              <span class="w stark">{dauer(-erg.gesetz.zuschlag, true)}</span>
+            </div>
+          {:else}
+            <div class="zeile"><span class="l"><span class="ok">{@html symbole.haken}</span>Gesetzliche Pause erfüllt</span><span class="w">{erg.gesetz.pause} von 45 Min</span></div>
+          {/if}
+        </div>
+      {/if}
     {/if}
 
     {#if fehler && !blatt}<p class="fehler" role="alert">{fehler}</p>{/if}

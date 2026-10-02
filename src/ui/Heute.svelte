@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { bewerteTag } from '../core/regeln';
+  import { bewerteTag, GESETZ_PAUSE } from '../core/regeln';
   import {
     fortsetzen,
     gehen,
@@ -76,8 +76,16 @@
   const fensterVorbei = $derived(!!regel && begonnen && (beendet || lauf.minute >= regel.fensterEnde));
   const fehlend = $derived(fenster ? Math.max(fenster.fehlendGesamt, fenster.fehlendEinzel) : regel ? regel.mindestGesamt : 0);
   const greiftNicht = $derived(!!regel && begonnen && tag!.kommen! > regel.fensterBeginn);
-  // Ring in der Pause: im Regelfenster die Minuten dort, sonst alle Pausen des Tages – jeweils gegen 30 Min
+  // Gesetzliche Pause: erst sichtbar, wenn 9 Std. Arbeitszeit erreicht sind
+  const gesetz = $derived(stand?.gesetz ?? null);
+  const gesetzSichtbar = $derived(!!gesetz?.erreicht);
+
+  // Ring in der Pause: ab 9 Std. Arbeitszeit alle Pausen gegen 45 Min, sonst im Regelfenster die Minuten dort,
+  // außerhalb alle Pausen des Tages gegen 30 Min
   const ringPause = $derived.by(() => {
+    if (gesetz?.erreicht) {
+      return { anteil: gesetz.pause / GESETZ_PAUSE, text: `${Math.min(gesetz.pause, 999)}/${GESETZ_PAUSE}`, beschreibung: `${gesetz.pause} von ${GESETZ_PAUSE} Minuten gesetzlicher Pause` };
+    }
     const ziel = regel?.mindestGesamt ?? 30;
     const imRegelfenster = !!regel && !greiftNicht && lauf.minute >= regel.fensterBeginn && lauf.minute < regel.fensterEnde;
     const wert = imRegelfenster ? (fenster?.imFenster ?? 0) : Math.floor(pausenSekunden / 60);
@@ -245,6 +253,32 @@
         <div class="zeile"><span class="l leise">Heute greift die Regel nicht, weil nach {uhrzeit(regel.fensterBeginn)} gekommen.</span></div>
       {:else if fensterVorbei && fenster && fenster.greift && fenster.zuschlag > 0}
         <div class="zeile"><span class="l"><span class="plakette">!</span>Pausenzeitverletzung</span><span class="w stark">{dauer(-fenster.zuschlag, true)}</span></div>
+      {/if}
+    </section>
+  {/if}
+
+  {#if gesetzSichtbar && gesetz}
+    <!-- Erscheint erst ab 9 Std. Arbeitszeit: wie viel der 45 Min Pause schon genommen ist -->
+    <section class="gruppe" aria-label="Gesetzliche Pause">
+      <div class="fenster">
+        <div class="kopf">
+          <b>Gesetzliche Pause ab 9 Std.</b>
+          <span>{gesetz.pause} von {GESETZ_PAUSE} Min</span>
+        </div>
+        <div class="balken-wrap" role="img" aria-label="{gesetz.pause} von {GESETZ_PAUSE} Minuten Pause">
+          <div class="leiste">
+            <div class="pause" style="left:0;width:{Math.min(100, (gesetz.pause / GESETZ_PAUSE) * 100)}%"></div>
+          </div>
+        </div>
+        <div class="bedingungen">
+          <span>
+            {@html gesetz.fehlend === 0 ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}{GESETZ_PAUSE} Min insgesamt
+            {#if gesetz.fehlend > 0}· <b>{beendet ? `${gesetz.fehlend} Min fehlen` : `noch ${gesetz.fehlend} Min`}</b>{/if}
+          </span>
+        </div>
+      </div>
+      {#if beendet && gesetz.zuschlag > 0}
+        <div class="zeile"><span class="l"><span class="plakette">!</span>Abzug gesetzliche Pause</span><span class="w stark">{dauer(-gesetz.zuschlag, true)}</span></div>
       {/if}
     </section>
   {/if}

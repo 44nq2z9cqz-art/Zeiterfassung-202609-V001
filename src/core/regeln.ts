@@ -43,6 +43,8 @@ export interface Tagesergebnis {
   status: Tagesstatus;
   feiertag: string | null;
   fenster: Pausenfenster | null;
+  /** Gesetzliche Pause ab 9 Stunden (nur an Arbeitstagen mit Kommen und Gehen) */
+  gesetz?: GesetzPause;
   /** Urlaubstage, die dieser Tag verbraucht (0, 0,5 oder 1) */
   urlaubstage: number;
 }
@@ -110,6 +112,49 @@ export function pruefePausenfenster(
   return { imFenster, laengste, fehlendGesamt, fehlendEinzel, greift, zuschlag };
 }
 
+// ─── Gesetzliche Pause ab 9 Stunden (§ 4 ArbZG) ─────────────────────────
+
+export const GESETZ_AB: Minuten = 9 * 60;
+export const GESETZ_PAUSE: Minuten = 45;
+
+export interface GesetzPause {
+  /** Arbeitszeit ab 9 Stunden erreicht (nach Abzug der Pausenregel) */
+  erreicht: boolean;
+  /** zählende Pause: alle Pausen des Tages plus Zuschlag der Pausenregel */
+  pause: Minuten;
+  fehlend: Minuten;
+  /** Abzug, höchstens bis die Arbeitszeit wieder bei 9 Stunden liegt; 0 wenn der Zuschlag ausgeschaltet ist */
+  zuschlag: Minuten;
+}
+
+/** Ist der Zuschlag für die gesetzliche Pause an diesem Tag eingeschaltet? */
+export function gesetzAktiv(datum: Datum, e: Einstellungen): boolean {
+  return !!e.pausenGesetz?.length && gueltigAm(e.pausenGesetz, datum);
+}
+
+/**
+ * Gesetzliche Mindestpause: Bei mehr als 9 Stunden Arbeitszeit sind 45 Minuten Pause nötig.
+ * Gezählt werden alle Pausen zusammen – so rechnet nach dem Abgleich mit dem Firmenjournal August auch das
+ * Firmensystem (Tage mit über 9 Std. und vielen kurzen Pausen blieben dort ohne Abzug).
+ * Der Zuschlag der Pausenregel 11–14 Uhr zählt dabei schon als Pause. Fehlt Pause, wird die
+ * Arbeitszeit gekürzt – aber nie unter 9 Stunden (wie die übliche Pausenautomatik).
+ */
+export function pruefeGesetzPause(pausen: Pause[], kommen: Minuten, bis: Minuten, fensterZuschlag: Minuten, aktiv: boolean, jetzt?: Minuten): GesetzPause {
+  let alle = 0;
+  for (const p of pausen) {
+    const ende = p.ende ?? jetzt ?? null;
+    if (ende === null) continue;
+    const laenge = Math.max(0, Math.min(ende, bis) - Math.max(p.beginn, kommen));
+    alle += laenge;
+  }
+  const ist = bis - kommen - alle - fensterZuschlag;
+  const pause = alle + fensterZuschlag;
+  const fehlend = Math.max(0, GESETZ_PAUSE - pause);
+  const erreicht = ist >= GESETZ_AB;
+  const zuschlag = aktiv && ist > GESETZ_AB ? Math.min(fehlend, ist - GESETZ_AB) : 0;
+  return { erreicht, pause, fehlend, zuschlag };
+}
+
 /** Die an diesem Tag anzuwendende Pausenregel oder null, wenn keine gilt. */
 export function regelAm(datum: Datum, soll: Minuten, e: Einstellungen): Pausenregel | null {
   const regel = gueltigAm(e.pausenregel, datum);
@@ -142,8 +187,9 @@ export function bewerteTag(datum: Datum, tag: Tag | undefined, e: Einstellungen,
     const ist = tag.gehen - tag.kommen - pausen;
     const regel = regelAm(datum, soll, e);
     const fenster = regel ? pruefePausenfenster(tag.pausen, tag.kommen, tag.gehen, regel) : null;
-    const zuschlag = fenster?.zuschlag ?? 0;
-    return { ...basis, status: 'arbeit', ist, pausen, fenster, zuschlag, saldo: ist - zuschlag - soll };
+    const gesetz = pruefeGesetzPause(tag.pausen, tag.kommen, tag.gehen, fenster?.zuschlag ?? 0, gesetzAktiv(datum, e));
+    const zuschlag = (fenster?.zuschlag ?? 0) + gesetz.zuschlag;
+    return { ...basis, status: 'arbeit', ist, pausen, fenster, gesetz, zuschlag, saldo: ist - zuschlag - soll };
   }
 
   if (datum > heuteDatum) return { ...basis, status: 'zukunft' };

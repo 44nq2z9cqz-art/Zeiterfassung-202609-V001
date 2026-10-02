@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { tageSeitBackup } from '../core/backup';
   import { gueltigAm } from '../core/einstellungen';
+  import { gesetzAktiv } from '../core/regeln';
   import { type Datum, datumDE, dauer, uhrzeit } from '../core/zeit';
   import { backupSichern } from '../lib/sichern';
   import { speicher } from '../lib/speicher.svelte';
@@ -34,6 +35,11 @@
   }
 
   const regel = $derived(gueltigAm(e.pausenregel, heute));
+  const gesetzAn = $derived(gesetzAktiv(heute, e));
+  async function gesetzUmschalten(ev: Event) {
+    const an = (ev.currentTarget as HTMLInputElement).checked;
+    await speicher.speichereEinstellungen({ ...e, pausenGesetz: [{ ab: '2000-01-01', wert: an }] });
+  }
   const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   const tageText = $derived(regel.wochentage.map((w) => WT[w]).join(', '));
   const kurz = (m: number) => (m % 60 === 0 ? String(m / 60) : uhrzeit(m));
@@ -105,7 +111,12 @@
           </span>
           <span class="w">{regel.aktiv ? 'aktiv' : 'aus'} <span class="pfeil">›</span></span>
         </button>
+        <label class="zeile">
+          <span class="l"><span>Gesetzliche Pause ab 9 Std.<small>45 Min insgesamt, fehlende Minuten werden abgezogen</small></span></span>
+          <input type="checkbox" class="schalter" id="e-gesetz" checked={gesetzAn} onchange={gesetzUmschalten} />
+        </label>
       </div>
+      <p class="hinweistext">Ausgeschaltet zeigt die App die 45 Minuten nur an, ohne Abzug. Der Schalter gilt für alle Tage – so lässt sich das Ergebnis mit dem Firmensystem abgleichen.</p>
 
       <h2 class="abschnitt">Konten</h2>
       <div class="gruppe">

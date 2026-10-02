@@ -18,6 +18,7 @@ export function standardEinstellungen(appStart: Datum): Einstellungen {
     wochenstunden: [{ ab: IMMER, wert: 40 * 60 }],
     sollHalbtag: [{ ab: IMMER, wert: 4 * 60 }],
     pausenregel: [{ ab: IMMER, wert: { ...STANDARD_PAUSENREGEL } }],
+    pausenGesetz: [{ ab: IMMER, wert: true }],
     sockel: 40 * 60,
     urlaubsanspruch: [{ ab: IMMER, wert: 31 }],
     name: '',

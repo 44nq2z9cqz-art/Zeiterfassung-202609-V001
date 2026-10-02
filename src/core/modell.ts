@@ -92,6 +92,8 @@ export interface Einstellungen {
   /** Soll am 24.12. und 31.12., wenn Werktag */
   sollHalbtag: Gueltig<Minuten>[];
   pausenregel: Gueltig<Pausenregel>[];
+  /** Zuschlag für die gesetzliche Pause ab 9 Stunden (45 Min) ein/aus, mit „gültig ab“ */
+  pausenGesetz?: Gueltig<boolean>[];
   /** Sockel des Zeitkontos (nur Anzeige, Konzept B3) */
   sockel: Minuten;
   urlaubsanspruch: Gueltig<number>[];

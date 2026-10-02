@@ -74,6 +74,14 @@ class Speicher {
       }
       await schreibeMeta(META.umstellungen, [...((await leseMeta<string[]>(META.umstellungen)) ?? []), 'hinweis-1300']);
     }
+    // v0.9.5: Zuschlag für die gesetzliche Pause ab 9 Std. einschalten (betrifft keinen bisherigen Tag)
+    if (!erledigt.includes('pause-gesetz')) {
+      if (!neu.pausenGesetz) {
+        neu = { ...neu, pausenGesetz: [{ ab: '2000-01-01', wert: true }] };
+        await schreibeMeta(META.einstellungen, neu);
+      }
+      await schreibeMeta(META.umstellungen, [...((await leseMeta<string[]>(META.umstellungen)) ?? []), 'pause-gesetz']);
+    }
     return neu;
   }
 

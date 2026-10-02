@@ -1,7 +1,7 @@
 // Stempeln am laufenden Tag (Konzept C): Kommen, Pause, Gehen – als reine Funktionen.
 // Jede Aktion liefert einen neuen Tag zurück und schreibt das Änderungsprotokoll (Konzept D).
 import type { Einstellungen, Tag } from './modell';
-import { pausenMinuten, pruefePausenfenster, regelAm, sollMinuten, type Pausenfenster } from './regeln';
+import { type GesetzPause, gesetzAktiv, pausenMinuten, pruefeGesetzPause, pruefePausenfenster, regelAm, sollMinuten, type Pausenfenster } from './regeln';
 import { type Datum, type Minuten, heute as heuteBerechnen, minutenJetzt, plusTage, uhrzeit } from './zeit';
 
 /** Pausen, die kürzer sind, gelten als versehentliches Doppeltippen und werden verworfen. */
@@ -107,6 +107,8 @@ export interface LiveStand {
   pausen: Minuten;
   /** Pausenfenster bis jetzt; null, wenn heute keine Pausenregel gilt */
   fenster: Pausenfenster | null;
+  /** Gesetzliche Pause ab 9 Stunden, live */
+  gesetz: GesetzPause;
   /** Saldo des Tages, wenn jetzt gegangen würde (inkl. absehbarem Zuschlag) */
   saldo: Minuten;
   /** Minuten ohne Pause seit Kommen bzw. seit der letzten Pause */
@@ -123,11 +125,12 @@ export function liveStand(datum: Datum, tag: Tag | undefined, e: Einstellungen, 
   const soll = sollMinuten(datum, tag, e);
   const regel = regelAm(datum, soll, e);
   const fenster = regel ? pruefePausenfenster(offen, tag.kommen, bis, regel) : null;
-  const zuschlag = fenster?.zuschlag ?? 0;
+  const gesetz = pruefeGesetzPause(offen, tag.kommen, bis, fenster?.zuschlag ?? 0, gesetzAktiv(datum, e));
+  const zuschlag = (fenster?.zuschlag ?? 0) + gesetz.zuschlag;
   const laufend = laufendePause(tag);
   const letztesEnde = Math.max(tag.kommen, ...tag.pausen.filter((p) => p.ende !== null).map((p) => p.ende as number));
   const ohnePause = laufend || tag.gehen !== null ? 0 : Math.max(0, bis - letztesEnde);
-  return { soll, ist, pausen, fenster, saldo: ist - zuschlag - soll, ohnePause };
+  return { soll, ist, pausen, fenster, gesetz, saldo: ist - zuschlag - soll, ohnePause };
 }
 
 export interface Balkenstueck {

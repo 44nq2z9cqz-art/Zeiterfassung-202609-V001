@@ -86,7 +86,10 @@ Der Zuschlag wird zusätzlich und getrennt ausgewiesen.
 | keine | 0 | 0 | 30 |
 | 13:50–14:20 | 10 | 10 | 20 |
 
-- **Gesetzliche Mindestpausen** (30 Minuten ab 6 Stunden, 45 Minuten ab 9 Stunden Arbeit): Sie erzeugen nur einen **Hinweis** und keinen Abzug. Ein Abzug lässt sich in den Einstellungen zuschalten.
+- ✅ **Gesetzliche Pause ab 9 Stunden (v0.9.5):** Bei mehr als 9 Std. Arbeitszeit sind 45 Min Pause nötig. Gezählt werden **alle Pausen zusammen** plus ein Zuschlag der Pausenregel 11–14 Uhr
+  (Abgleich Firmenjournal August: Tage über 9 Std. mit vielen kurzen Pausen blieben ohne Abzug). Fehlt Pause, wird die Arbeitszeit gekürzt, aber nie unter 9:00.
+  Der Abzug ist in den Einstellungen abschaltbar (gilt dann für alle Tage, Anzeige bleibt). Auf „Heute“ erscheint ab 9 Std. ein zweiter Balken „x von 45 Min“,
+  und der Ring in der Pause zählt dann gegen 45. Kein Hinweis-Banner. Die 30-Minuten-Regel ab 6 Stunden ist nicht umgesetzt.
 - **Rundung:** Stempelzeiten werden auf volle Minuten abgeschnitten. Eine Pause dauert „Ende − Beginn“ in Minuten.
   Die Pausenlänge wird damit genauso berechnet wie die Arbeitszeit. Die bisherige zusätzliche Abrundung jeder einzelnen Pause entfällt (siehe G).
 

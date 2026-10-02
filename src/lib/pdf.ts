@@ -254,6 +254,10 @@ export function pdfTagesnachweis(daten: Datenbestand, datum: Datum, heute: Datum
         : `erfüllt – ${f.imFenster} von ${regel.mindestGesamt} Min im Regelzeitraum, längste Pause ${f.laengste} Min.`;
     y = absatz(doc, y, text, `Pausenregel ${uhrzeit(regel.fensterBeginn)}-${uhrzeit(regel.fensterEnde)} Uhr:`);
   }
+  if (z.gesetz?.erreicht) {
+    const g = z.gesetz;
+    y = absatz(doc, y, g.zuschlag ? `${g.pause} von 45 Min Pause. Zuschlag ${hm(-g.zuschlag, true)}.` : `erfüllt – ${g.pause} von 45 Min Pause.`, 'Gesetzliche Pause ab 9 Std.:');
+  }
   if (tag?.kommentar) y = absatz(doc, y, tag.kommentar, 'Kommentar:');
 
   const quellen = new Set(s.map((x) => x.quelle));
@@ -365,12 +369,16 @@ function detailTeil(doc: jsPDF, daten: Datenbestand, von: Datum, bis: Datum, heu
     didParseCell: markiere(sichtbar)
   });
   let y = summenKaestchen(doc, ende(doc) + 6, summen) + 6;
-  const verletzungen = sichtbar.filter((z) => z.zuschlag && z.fenster);
+  const verletzungen = sichtbar.filter((z) => z.zuschlag);
   if (verletzungen.length) {
     y = zwischentitel(doc, y + 1, 'Pausenzeitverletzungen');
     y += 4;
     for (const z of verletzungen) {
-      y = absatz(doc, y, `${z.fenster!.imFenster} von 30 Min Pause im Regelzeitraum, längste Pause ${z.fenster!.laengste} Min. Zuschlag ${hm(-z.zuschlag, true)}.`, `${kurzDatum(z.datum)} ${z.wt}:`);
+      const teile = [
+        z.fenster?.zuschlag ? `${z.fenster.imFenster} von 30 Min Pause im Regelzeitraum, längste Pause ${z.fenster.laengste} Min (${hm(-z.fenster.zuschlag, true)})` : '',
+        z.gesetz?.zuschlag ? `über 9 Std. Arbeit mit ${z.gesetz.pause} von 45 Min Pause (${hm(-z.gesetz.zuschlag, true)})` : ''
+      ].filter(Boolean);
+      y = absatz(doc, y, `${teile.join('; ')}. Zuschlag ${hm(-z.zuschlag, true)}.`, `${kurzDatum(z.datum)} ${z.wt}:`);
     }
   }
   y = zeitBuchungen(doc, daten, von, bis, heute, y + 2);
