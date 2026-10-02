@@ -9,6 +9,7 @@
   import type { Teilbericht } from '../lib/pdf';
   import { symbole } from './symbole';
   import Titel from './Titel.svelte';
+  import AuszahlungBlatt from './AuszahlungBlatt.svelte';
 
   let { heute, oeffneEinstellungen }: { heute: Datum; oeffneEinstellungen: () => void } = $props();
 
@@ -51,6 +52,7 @@
   let protokoll = $state(false);
   let meldung = $state<string | null>(null);
   let arbeitet = $state(false);
+  let auszahlungOffen = $state(false);
 
   function artWaehlen(a: Zeitraumart) {
     art = a;
@@ -216,6 +218,17 @@
 {#if auswahl.length > 1}<p class="hinweistext mitte">{auswahl.length} Berichte in einem PDF, jeder ab einer neuen Seite. CSV nur für einen einzelnen Bericht.</p>{:else if !auswahl.length}<p class="hinweistext mitte">Bitte mindestens einen Bericht wählen.</p>{/if}
 {#if meldung}<p class="hinweistext mitte" role="status">{meldung}</p>{/if}
 <p class="hinweistext">PDF im Format A4 Hochformat. Über das Teilen-Menü lässt sich der Bericht in „Dateien“ sichern, per Mail senden oder drucken.</p>
+
+<h2 class="abschnitt">Anträge</h2>
+<div class="gruppe">
+  <button type="button" class="zeile" onclick={() => (auszahlungOffen = true)}>
+    <span class="l"><span>Antrag auf Auszahlung von Überstunden<small>Zeitkonto über dem Sockel zum Stichtag</small></span></span><span class="pfeil">›</span>
+  </button>
+</div>
+
+{#if auszahlungOffen}
+  <AuszahlungBlatt {heute} schliessen={() => (auszahlungOffen = false)} />
+{/if}
 
 <style>
   .stepper {

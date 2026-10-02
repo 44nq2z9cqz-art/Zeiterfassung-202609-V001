@@ -14,6 +14,7 @@ import {
   stempelungen,
   type Summen
 } from '../core/berichte';
+import { type Auszahlungsantrag, monatText } from '../core/auszahlung';
 import { gueltigAm } from '../core/einstellungen';
 import { urlaubskonto } from '../core/konten';
 import { anspruch, antragsliste, antragsstatus } from '../core/urlaubsantrag';
@@ -645,5 +646,74 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
     foot: [['', 'Rest', tage(zaehlend.at(-1)?.rest ?? a.gesamt)]],
     columnStyles: { 0: { cellWidth: 38 }, 2: { halign: 'right' } }
   });
+  return abschliessen(doc, `Erstellt am ${datumDE(heute)}`);
+}
+
+// ─── Antrag auf Auszahlung von Überstunden ───────────────────────────────
+
+export function pdfAuszahlungsantrag(daten: Datenbestand, a: Auszahlungsantrag, heute: Datum): Blob {
+  const doc = neuesDokument(daten, { titel: 'Antrag auf Auszahlung von Überstunden', unter: `Antragsdatum ${datumDE(heute)}` });
+  const std = (m: number) => `${hm(m)} Std.`;
+  const genehmiger = daten.einstellungen.genehmiger || 'CHE';
+  let y = absatz(doc, 40, `Geschäftsleitung (${genehmiger})`, 'An:');
+  y = kaestchen(doc, y + 2, [
+    ['Stichtag', datumDE(a.stichtag)],
+    ['Zeitkonto gesamt', std(a.saldo)],
+    ['Sockel', std(a.sockel)],
+    ['Über dem Sockel', std(a.ueber)]
+  ]);
+  const zeilen: string[][] = [
+    [`Zeitkonto über dem Sockel zum ${datumDE(a.stichtag)}`, hm(a.ueber)],
+    ['abgeglichen mit dem Saldo aus der TiMaS Zeiterfassung am', a.abgleichAm ? datumDE(a.abgleichAm) : ''],
+    ['Anzahl der Stunden zur Auszahlung', hm(a.stunden)],
+    ['Saldo Zeitkonto über dem Sockel nach Auszahlung', hm(a.ueber - a.stunden)]
+  ];
+  if (a.abrechnung) zeilen.push(['Auszahlung mit der Gehaltsabrechnung für', t(monatText(a.abrechnung))]);
+  tabelle(doc, {
+    startY: y + 7,
+    head: [['Position', 'Stunden']],
+    body: zeilen.map((z) => z.map((x) => t(x))),
+    styles: { font: 'helvetica', fontSize: 10, cellPadding: { top: 2.4, bottom: 2.4, left: 2, right: 2 }, textColor: NACHT, lineColor: [218, 219, 213], lineWidth: { bottom: 0.15 } },
+    columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
+    // Die beantragten Stunden hervorheben
+    didParseCell: (d) => {
+      if (d.section === 'body' && d.row.index === 2) {
+        d.cell.styles.fillColor = MARKE;
+        d.cell.styles.fontStyle = 'bold';
+      }
+    }
+  });
+  y = ende(doc) + 7;
+  if (a.bemerkung) y = absatz(doc, y, a.bemerkung, 'Bemerkung:') + 1;
+  y = absatz(doc, y, `Ich beantrage die Auszahlung der oben genannten Stunden. Der Sockel von ${std(a.sockel)} bleibt auf dem Zeitkonto erhalten.`) + 16;
+
+  // Unterschriften nebeneinander
+  const breite = (BREITE - 12) / 2;
+  doc.setDrawColor(...NACHT);
+  doc.setLineWidth(0.25);
+  doc.line(RAND, y, RAND + breite, y);
+  doc.line(RAND + breite + 12, y, 210 - RAND, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAU);
+  doc.text(t(`Datum, Unterschrift ${daten.einstellungen.name || 'Mitarbeiter/in'}`), RAND, y + 4);
+  doc.text(t(`Datum, Unterschrift Geschäftsleitung (${genehmiger}) – genehmigt`), RAND + breite + 12, y + 4);
+
+  // Vermerk für die Personalabteilung
+  y += 16;
+  doc.setDrawColor(154, 158, 166);
+  doc.setLineDashPattern([1.2, 1], 0);
+  doc.roundedRect(RAND, y, BREITE, 20, 1.5, 1.5, 'S');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.text('VERMERK PERSONALABTEILUNG / LOHNBUCHHALTUNG', RAND + 4, y + 5.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...NACHT);
+  doc.text('Ausgezahlt mit Abrechnung:', RAND + 4, y + 14);
+  doc.text('Im Zeitkonto ausgebucht am:', RAND + BREITE / 2 + 2, y + 14);
+  doc.line(RAND + 50, y + 14.5, RAND + BREITE / 2 - 4, y + 14.5);
+  doc.line(RAND + BREITE / 2 + 50, y + 14.5, 210 - RAND - 4, y + 14.5);
+  doc.setLineDashPattern([], 0);
   return abschliessen(doc, `Erstellt am ${datumDE(heute)}`);
 }
