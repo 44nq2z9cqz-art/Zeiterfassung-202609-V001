@@ -119,6 +119,10 @@
   const fenster = $derived(erg.fenster);
   const hatInhalt = $derived(speicher.tage.has(datum));
   const einzelMin = $derived(gueltigAm(e.pausenregel, datum).mindestEinzel);
+  // Pausen zusammengefasst, aufklappbar (abgeschlossene Pausen zählen in die Summe)
+  let pausenOffen = $state(false);
+  const pausenSumme = $derived(tag.pausen.reduce((s, p) => s + (p.ende !== null ? p.ende - p.beginn : 0), 0));
+  const pauseLaeuft = $derived(tag.pausen.some((p) => p.ende === null));
 </script>
 
 <div class="seite" role="dialog" aria-modal="true" aria-label="Tag bearbeiten">
@@ -164,9 +168,16 @@
           <span class="l"><span>Kommen{#if tag.kommenQuelle}<small>{QUELLE[tag.kommenQuelle]}</small>{/if}</span></span>
           <span class="w stark">{tag.kommen !== null ? uhrzeit(tag.kommen) : 'eintragen'} <span class="pfeil">›</span></span>
         </button>
-        {#each tag.pausen as p (p.id)}
+        {#if tag.pausen.length}
+          <!-- Summe aller Pausen, die einzelnen Pausen klappen darunter auf -->
+          <button type="button" class="zeile" aria-expanded={pausenOffen} onclick={() => (pausenOffen = !pausenOffen)}>
+            <span class="l"><span>Pausen insgesamt<small>{tag.pausen.length} {tag.pausen.length === 1 ? 'Pause' : 'Pausen'}{pauseLaeuft ? ' · eine läuft' : ''}</small></span></span>
+            <span class="w stark">{dauer(pausenSumme)} <span class="pfeil" style="transform:rotate({pausenOffen ? -90 : 90}deg)">›</span></span>
+          </button>
+        {/if}
+        {#each pausenOffen ? tag.pausen : [] as p (p.id)}
           {@const laenge = (p.ende ?? p.beginn) - p.beginn}
-          <button type="button" class="zeile" onclick={() => oeffne({ art: 'pause', id: p.id, beginn: uhrzeit(p.beginn), ende: p.ende === null ? '' : uhrzeit(p.ende) })}>
+          <button type="button" class="zeile einzelpause" onclick={() => oeffne({ art: 'pause', id: p.id, beginn: uhrzeit(p.beginn), ende: p.ende === null ? '' : uhrzeit(p.ende) })}>
             <span class="l">
               {@html p.ende !== null && laenge >= einzelMin ? `<span class="ok">${symbole.haken}</span>` : '<span class="offen"></span>'}
               Pause {uhrzeit(p.beginn)} – {p.ende === null ? 'läuft' : uhrzeit(p.ende)}
@@ -264,6 +275,15 @@
 {/if}
 
 <style>
+  .pfeil {
+    display: inline-block;
+    transition: transform 0.2s ease;
+  }
+  /* Einzelne Pausen eingerückt unter „Pausen insgesamt“ */
+  .einzelpause {
+    padding-left: 32px;
+    font-size: 15px;
+  }
   .seite {
     position: fixed;
     inset: 0;
