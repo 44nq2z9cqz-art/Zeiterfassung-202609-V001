@@ -685,7 +685,7 @@ export function pdfAuszahlungsantrag(daten: Datenbestand, a: Auszahlungsantrag, 
   });
   y = ende(doc) + 7;
   if (a.bemerkung) y = absatz(doc, y, a.bemerkung, 'Bemerkung:') + 1;
-  y = absatz(doc, y, `Ich beantrage die Auszahlung der oben genannten Stunden. Der Sockel von ${std(a.sockel)} bleibt auf dem Zeitkonto erhalten.`) + 16;
+  y += 18;
 
   // Unterschriften nebeneinander
   const breite = (BREITE - 12) / 2;
