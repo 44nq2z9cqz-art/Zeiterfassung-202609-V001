@@ -10,6 +10,7 @@
   import EinstellungBlatt, { type Art } from './EinstellungBlatt.svelte';
   import ImportAltApp from './ImportAltApp.svelte';
   import Wiederherstellen from './Wiederherstellen.svelte';
+  import Bereich from './Bereich.svelte';
   import Sicherungen from './Sicherungen.svelte';
   import type { Sicherung } from '../core/sicherungen';
 
@@ -95,6 +96,10 @@
     suche = 'fertig';
   }
 
+  // Aufklappbare Bereiche: immer nur einer offen, damit die Liste kurz bleibt
+  let offen = $state<string | null>(null);
+  const umschalten = (id: string) => (offen = offen === id ? null : id);
+
   const build = new Date(__BUILD_ZEIT__).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
 </script>
 
@@ -115,107 +120,110 @@
         <button type="button" class="fertig" onclick={schliessen}>Fertig</button>
       </div>
 
-      <h2 class="abschnitt">Arbeitszeit</h2>
-      <div class="gruppe">
-        <button type="button" class="zeile" onclick={() => (blatt = 'wochenstunden')}>
-          <span class="l"><span>Wochenstunden<small>Mo–Fr{spaeter(e.wochenstunden) ? ` · ab ${datumDE(spaeter(e.wochenstunden)!.ab)} ${dauer(spaeter(e.wochenstunden)!.wert)}` : ''}</small></span></span>
-          <span class="w">{dauer(gueltigAm(e.wochenstunden, heute))} <span class="pfeil">›</span></span>
-        </button>
-        <button type="button" class="zeile" onclick={() => (blatt = 'halbtag')}>
-          <span class="l">Soll 24.12. und 31.12.</span><span class="w">{dauer(gueltigAm(e.sollHalbtag, heute))} <span class="pfeil">›</span></span>
-        </button>
-      </div>
-
-      <h2 class="abschnitt">Pausenregel</h2>
-      <div class="gruppe">
-        <button type="button" class="zeile" onclick={() => (blatt = 'pausenregel')}>
-          <span class="l">
-            <span>Pausenregel {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr<small>{regel.aktiv ? `${regel.mindestGesamt} Min, davon eine ab ${regel.mindestEinzel} Min · ${tageText}` : 'ausgeschaltet'}{spaeter(e.pausenregel) ? ` · Änderung ab ${datumDE(spaeter(e.pausenregel)!.ab)}` : ''}</small></span>
-          </span>
-          <span class="w">{regel.aktiv ? 'aktiv' : 'aus'} <span class="pfeil">›</span></span>
-        </button>
-        <label class="zeile">
-          <span class="l"><span>Gesetzliche Pause ab 9 Std.<small>45 Min insgesamt, fehlende Minuten werden abgezogen</small></span></span>
-          <input type="checkbox" class="schalter" id="e-gesetz" checked={gesetzAn} onchange={gesetzUmschalten} />
-        </label>
-      </div>
-      <p class="hinweistext">Ausgeschaltet zeigt die App die 45 Minuten nur an, ohne Abzug. Der Schalter gilt für alle Tage – so lässt sich das Ergebnis mit dem Firmensystem abgleichen.</p>
-
-      <h2 class="abschnitt">Konten</h2>
-      <div class="gruppe">
-        <button type="button" class="zeile" onclick={() => (blatt = 'sockel')}>
-          <span class="l">Sockel Zeitkonto</span><span class="w">{dauer(e.sockel)} <span class="pfeil">›</span></span>
-        </button>
-        <label class="zeile">
-          <span class="l"><span>Bruttolohn pro Monat<small>für Überstunden in Euro</small></span></span>
-          <input class="eingabe" id="e-brutto" inputmode="decimal" placeholder="optional" bind:value={bruttoText} onblur={bruttoSichern} />
-        </label>
-        <label class="zeile">
-          <span class="l"><span>Abzüge bei Auszahlung<small>Schätzung netto, z. B. 50 %</small></span></span>
-          <input class="eingabe" id="e-abzug" inputmode="decimal" placeholder="optional" bind:value={abzugText} onblur={abzugSichern} />
-        </label>
-        <button type="button" class="zeile" onclick={() => (blatt = 'urlaubsanspruch')}>
-          <span class="l"><span>Urlaubsanspruch pro Jahr{#if spaeter(e.urlaubsanspruch)}<small>ab {datumDE(spaeter(e.urlaubsanspruch)!.ab)}: {spaeter(e.urlaubsanspruch)!.wert} Tage</small>{/if}</span></span>
-          <span class="w">{gueltigAm(e.urlaubsanspruch, heute)} Tage <span class="pfeil">›</span></span>
-        </button>
-        <div class="zeile"><span class="l">Zeitkonto rechnet ab</span><span class="w">{datumDE(e.appStart)}</span></div>
-      </div>
-
-      <h2 class="abschnitt">Hinweise</h2>
-      <div class="gruppe">
-        <button type="button" class="zeile" onclick={() => (blatt = 'hinweise')}>
-          <span class="l"><span>Hinweise bei geöffneter App<small>{hinweisText}</small></span></span><span class="pfeil">›</span>
-        </button>
-      </div>
-
-      <h2 class="abschnitt">Daten</h2>
-      <div class="gruppe">
-        <button type="button" class="zeile aktion" onclick={sichern}>
-          <span class="l"><span>Backup sichern<small>letztes Backup: {backupText}</small></span></span>
-          <span class="w">{backupStatus ?? ''} <span class="pfeil">›</span></span>
-        </button>
-        <button type="button" class="zeile aktion" onclick={() => ((gewaehlt = undefined), (ansicht = 'wiederherstellen'))}>
-          <span class="l">Backup wiederherstellen</span><span class="pfeil">›</span>
-        </button>
-        <button type="button" class="zeile aktion" onclick={() => (ansicht = 'sicherungen')}>
-          <span class="l"><span>Automatische Sicherungen<small>täglich in der App, die letzten 14 Tage</small></span></span><span class="pfeil">›</span>
-        </button>
-        <button type="button" class="zeile aktion" onclick={() => (ansicht = 'import')}>
-          <span class="l"><span>Daten der alten App importieren<small>Datensicherung „Zeiterfassung Pro“</small></span></span>
-          <span class="pfeil">›</span>
-        </button>
-        <div class="zeile">
-          <span class="l">Dauerhafter Speicher</span>
-          <span class="w">{speicher.dauerhaft === true ? 'bestätigt' : speicher.dauerhaft === false ? 'nicht bestätigt' : 'unbekannt'}</span>
-        </div>
-      </div>
-      <p class="hinweistext">Das Backup wird über das Teilen-Menü gesichert, am besten unter „In Dateien sichern“ → iCloud Drive.</p>
-
-      <h2 class="abschnitt">Darstellung</h2>
-      <div class="segmente" role="group" aria-label="Darstellung">
-        {#each DARSTELLUNG as [id, text] (id)}
-          <button type="button" aria-pressed={(e.darstellung ?? 'hell') === id} onclick={() => speicher.speichereEinstellungen({ ...e, darstellung: id })}>{text}</button>
-        {/each}
-      </div>
-      <p class="hinweistext">„Automatisch“ folgt der Einstellung des iPhones, also z. B. abends dunkel.</p>
-
-      <h2 class="abschnitt">Für Berichte</h2>
-      <div class="gruppe">
-        <label class="zeile"><span class="l">Name</span><input class="eingabe" id="e-name" autocomplete="name" placeholder="optional" bind:value={name} onblur={personSichern} /></label>
-        <label class="zeile"><span class="l">Personalnummer</span><input class="eingabe" id="e-pnr" inputmode="numeric" placeholder="optional" bind:value={personalnummer} onblur={personSichern} /></label>
-        <label class="zeile"><span class="l">Urlaub genehmigt von</span><input class="eingabe" id="e-genehmiger" maxlength="6" autocapitalize="characters" placeholder="Kürzel" bind:value={genehmiger} onblur={personSichern} /></label>
-      </div>
-      <p class="hinweistext">Name und Personalnummer erscheinen oben rechts auf jedem PDF-Bericht, das Kürzel bei genehmigten Urlaubsanträgen. Bleibt nur auf diesem Gerät.</p>
-
-      <h2 class="abschnitt">App</h2>
-      <div class="gruppe">
-        <div class="zeile"><span class="l">Version</span><span class="w">{__APP_VERSION__} · {build}</span></div>
-        <button type="button" class="zeile aktion" onclick={nachUpdateSuchen} disabled={suche === 'laeuft'}>
-          <span class="l">Nach Update suchen</span>
-          <span class="w">{suche === 'laeuft' ? 'sucht …' : suche === 'fertig' ? (aktualisierung.verfuegbar ? 'Update bereit' : 'aktuell') : ''}</span>
-        </button>
-        <div class="zeile"><span class="l">Offline nutzbar</span><span class="w">{aktualisierung.offlineBereit || navigator.serviceWorker?.controller ? 'ja' : 'wird eingerichtet'}</span></div>
-        <div class="zeile"><span class="l">Gespeicherte Tage</span><span class="w">{speicher.tage.size}</span></div>
+      <div class="bereiche">
+        <Bereich titel="Arbeitszeit" info={`${dauer(gueltigAm(e.wochenstunden, heute))} Std. pro Woche`} offen={offen === 'arbeitszeit'} umschalten={() => umschalten('arbeitszeit')}>
+          <div class="gruppe">
+            <button type="button" class="zeile" onclick={() => (blatt = 'wochenstunden')}>
+              <span class="l"><span>Wochenstunden<small>Mo–Fr{spaeter(e.wochenstunden) ? ` · ab ${datumDE(spaeter(e.wochenstunden)!.ab)} ${dauer(spaeter(e.wochenstunden)!.wert)}` : ''}</small></span></span>
+              <span class="w">{dauer(gueltigAm(e.wochenstunden, heute))} <span class="pfeil">›</span></span>
+            </button>
+            <button type="button" class="zeile" onclick={() => (blatt = 'halbtag')}>
+              <span class="l">Soll 24.12. und 31.12.</span><span class="w">{dauer(gueltigAm(e.sollHalbtag, heute))} <span class="pfeil">›</span></span>
+            </button>
+          </div>
+        </Bereich>
+        <Bereich titel="Pausenregel" info={`${regel.aktiv ? `${kurz(regel.fensterBeginn)}–${kurz(regel.fensterEnde)} Uhr` : 'Regel aus'} · 9-Std.-Regel ${gesetzAn ? 'mit Abzug' : 'nur Anzeige'}`} offen={offen === 'pausen'} umschalten={() => umschalten('pausen')}>
+          <div class="gruppe">
+            <button type="button" class="zeile" onclick={() => (blatt = 'pausenregel')}>
+              <span class="l">
+                <span>Pausenregel {kurz(regel.fensterBeginn)}–{kurz(regel.fensterEnde)} Uhr<small>{regel.aktiv ? `${regel.mindestGesamt} Min, davon eine ab ${regel.mindestEinzel} Min · ${tageText}` : 'ausgeschaltet'}{spaeter(e.pausenregel) ? ` · Änderung ab ${datumDE(spaeter(e.pausenregel)!.ab)}` : ''}</small></span>
+              </span>
+              <span class="w">{regel.aktiv ? 'aktiv' : 'aus'} <span class="pfeil">›</span></span>
+            </button>
+            <label class="zeile">
+              <span class="l"><span>Gesetzliche Pause ab 9 Std.<small>45 Min insgesamt, fehlende Minuten werden abgezogen</small></span></span>
+              <input type="checkbox" class="schalter" id="e-gesetz" checked={gesetzAn} onchange={gesetzUmschalten} />
+            </label>
+          </div>
+          <p class="hinweistext">Ausgeschaltet zeigt die App die 45 Minuten nur an, ohne Abzug. Der Schalter gilt für alle Tage – so lässt sich das Ergebnis mit dem Firmensystem abgleichen.</p>
+        </Bereich>
+        <Bereich titel="Konten" info={`Sockel ${dauer(e.sockel)} · ${gueltigAm(e.urlaubsanspruch, heute)} Tage Urlaub${e.bruttolohn ? ' · Bruttolohn erfasst' : ''}`} offen={offen === 'konten'} umschalten={() => umschalten('konten')}>
+          <div class="gruppe">
+            <button type="button" class="zeile" onclick={() => (blatt = 'sockel')}>
+              <span class="l">Sockel Zeitkonto</span><span class="w">{dauer(e.sockel)} <span class="pfeil">›</span></span>
+            </button>
+            <label class="zeile">
+              <span class="l"><span>Bruttolohn pro Monat<small>für Überstunden in Euro</small></span></span>
+              <input class="eingabe" id="e-brutto" inputmode="decimal" placeholder="optional" bind:value={bruttoText} onblur={bruttoSichern} />
+            </label>
+            <label class="zeile">
+              <span class="l"><span>Abzüge bei Auszahlung<small>Schätzung netto, z. B. 50 %</small></span></span>
+              <input class="eingabe" id="e-abzug" inputmode="decimal" placeholder="optional" bind:value={abzugText} onblur={abzugSichern} />
+            </label>
+            <button type="button" class="zeile" onclick={() => (blatt = 'urlaubsanspruch')}>
+              <span class="l"><span>Urlaubsanspruch pro Jahr{#if spaeter(e.urlaubsanspruch)}<small>ab {datumDE(spaeter(e.urlaubsanspruch)!.ab)}: {spaeter(e.urlaubsanspruch)!.wert} Tage</small>{/if}</span></span>
+              <span class="w">{gueltigAm(e.urlaubsanspruch, heute)} Tage <span class="pfeil">›</span></span>
+            </button>
+            <div class="zeile"><span class="l">Zeitkonto rechnet ab</span><span class="w">{datumDE(e.appStart)}</span></div>
+          </div>
+        </Bereich>
+        <Bereich titel="Hinweise" info={hinweisText} offen={offen === 'hinweise'} umschalten={() => umschalten('hinweise')}>
+          <div class="gruppe">
+            <button type="button" class="zeile" onclick={() => (blatt = 'hinweise')}>
+              <span class="l"><span>Hinweise bei geöffneter App<small>{hinweisText}</small></span></span><span class="pfeil">›</span>
+            </button>
+          </div>
+        </Bereich>
+        <Bereich titel="Daten" info={`Letztes Backup: ${backupText}`} offen={offen === 'daten'} umschalten={() => umschalten('daten')}>
+          <div class="gruppe">
+            <button type="button" class="zeile aktion" onclick={sichern}>
+              <span class="l"><span>Backup sichern<small>letztes Backup: {backupText}</small></span></span>
+              <span class="w">{backupStatus ?? ''} <span class="pfeil">›</span></span>
+            </button>
+            <button type="button" class="zeile aktion" onclick={() => ((gewaehlt = undefined), (ansicht = 'wiederherstellen'))}>
+              <span class="l">Backup wiederherstellen</span><span class="pfeil">›</span>
+            </button>
+            <button type="button" class="zeile aktion" onclick={() => (ansicht = 'sicherungen')}>
+              <span class="l"><span>Automatische Sicherungen<small>täglich in der App, die letzten 14 Tage</small></span></span><span class="pfeil">›</span>
+            </button>
+            <button type="button" class="zeile aktion" onclick={() => (ansicht = 'import')}>
+              <span class="l"><span>Daten der alten App importieren<small>Datensicherung „Zeiterfassung Pro“</small></span></span>
+              <span class="pfeil">›</span>
+            </button>
+            <div class="zeile">
+              <span class="l">Dauerhafter Speicher</span>
+              <span class="w">{speicher.dauerhaft === true ? 'bestätigt' : speicher.dauerhaft === false ? 'nicht bestätigt' : 'unbekannt'}</span>
+            </div>
+          </div>
+          <p class="hinweistext">Das Backup wird über das Teilen-Menü gesichert, am besten unter „In Dateien sichern“ → iCloud Drive.</p>
+        </Bereich>
+        <Bereich titel="Darstellung" info={DARSTELLUNG.find(([id]) => id === (e.darstellung ?? 'hell'))?.[1] ?? 'Hell'} offen={offen === 'darstellung'} umschalten={() => umschalten('darstellung')}>
+          <div class="segmente" role="group" aria-label="Darstellung">
+            {#each DARSTELLUNG as [id, text] (id)}
+              <button type="button" aria-pressed={(e.darstellung ?? 'hell') === id} onclick={() => speicher.speichereEinstellungen({ ...e, darstellung: id })}>{text}</button>
+            {/each}
+          </div>
+          <p class="hinweistext">„Automatisch“ folgt der Einstellung des iPhones, also z. B. abends dunkel.</p>
+        </Bereich>
+        <Bereich titel="Für Berichte" info={[e.name, e.personalnummer ? `Nr. ${e.personalnummer}` : '', e.genehmiger ?? 'CHE'].filter(Boolean).join(' · ')} offen={offen === 'berichte'} umschalten={() => umschalten('berichte')}>
+          <div class="gruppe">
+            <label class="zeile"><span class="l">Name</span><input class="eingabe" id="e-name" autocomplete="name" placeholder="optional" bind:value={name} onblur={personSichern} /></label>
+            <label class="zeile"><span class="l">Personalnummer</span><input class="eingabe" id="e-pnr" inputmode="numeric" placeholder="optional" bind:value={personalnummer} onblur={personSichern} /></label>
+            <label class="zeile"><span class="l">Urlaub genehmigt von</span><input class="eingabe" id="e-genehmiger" maxlength="6" autocapitalize="characters" placeholder="Kürzel" bind:value={genehmiger} onblur={personSichern} /></label>
+          </div>
+          <p class="hinweistext">Name und Personalnummer erscheinen oben rechts auf jedem PDF-Bericht, das Kürzel bei genehmigten Urlaubsanträgen. Bleibt nur auf diesem Gerät.</p>
+        </Bereich>
+        <Bereich titel="App" info={`Version ${__APP_VERSION__}`} offen={offen === 'app'} umschalten={() => umschalten('app')}>
+          <div class="gruppe">
+            <div class="zeile"><span class="l">Version</span><span class="w">{__APP_VERSION__} · {build}</span></div>
+            <button type="button" class="zeile aktion" onclick={nachUpdateSuchen} disabled={suche === 'laeuft'}>
+              <span class="l">Nach Update suchen</span>
+              <span class="w">{suche === 'laeuft' ? 'sucht …' : suche === 'fertig' ? (aktualisierung.verfuegbar ? 'Update bereit' : 'aktuell') : ''}</span>
+            </button>
+            <div class="zeile"><span class="l">Offline nutzbar</span><span class="w">{aktualisierung.offlineBereit || navigator.serviceWorker?.controller ? 'ja' : 'wird eingerichtet'}</span></div>
+            <div class="zeile"><span class="l">Gespeicherte Tage</span><span class="w">{speicher.tage.size}</span></div>
+          </div>
+        </Bereich>
       </div>
     {/if}
   </div>
@@ -241,6 +249,11 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+  .bereiche {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
   .leiste {
     display: grid;
