@@ -28,6 +28,8 @@ export function setzeKommen(tag: Tag, minute: Minuten | null, am: string): Ergeb
       ...tag,
       kommen: minute,
       kommenQuelle: minute === null ? undefined : 'manuell',
+      // von Hand geändert: kein sekundengenauer Zeitpunkt mehr
+      kommenAm: undefined,
       protokoll: eintrag(tag, am, 'kommen', zeit(tag.kommen), zeit(minute))
     }
   };

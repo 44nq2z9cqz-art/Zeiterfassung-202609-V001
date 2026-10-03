@@ -130,3 +130,14 @@ describe('C Zeitbalken der Pausenregel', () => {
     expect(pausenbalken(arbeitstag(D, '08:00', '10:00'), regel, u('16:00'))).toEqual([]);
   });
 });
+
+describe('Kommen sekundengenau (Anzeige)', () => {
+  it('merkt sich den Zeitpunkt; von Hand geändert fällt er weg', async () => {
+    const { kommen } = await import('../src/core/stempeln');
+    const { setzeKommen } = await import('../src/core/bearbeiten');
+    const t = kommen(undefined, { datum: '2026-10-03', minute: 615, iso: '2026-10-03T08:15:50.000Z' });
+    expect(t.kommenAm).toBe('2026-10-03T08:15:50.000Z');
+    const r = setzeKommen(t, 600, '2026-10-03T09:00:00Z');
+    expect(r.tag?.kommenAm).toBeUndefined();
+  });
+});

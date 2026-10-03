@@ -30,6 +30,8 @@ export interface Tag {
   kommen: Minuten | null;
   gehen: Minuten | null;
   kommenQuelle?: Quelle;
+  /** Sekundengenauer Zeitpunkt des live gestempelten Kommens (nur für die laufende Anzeige) */
+  kommenAm?: string;
   gehenQuelle?: Quelle;
   pausen: Pause[];
   arbeitsort: Arbeitsort;

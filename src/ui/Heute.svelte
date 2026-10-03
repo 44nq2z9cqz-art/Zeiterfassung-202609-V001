@@ -68,8 +68,12 @@
     (tag?.pausen ?? []).reduce((s, p) => s + (p.ende !== null ? (p.ende - p.beginn) * 60 : (pauseSekunden ?? (lauf.minute - p.beginn) * 60)), 0)
   );
 
-  // Arbeitszeit sekundengenau: die laufende Minute zählt mit, solange gearbeitet wird
-  const arbeitSekunden = $derived((stand?.ist ?? 0) * 60 + (begonnen && !beendet && !pause ? jetzt.getSeconds() : 0));
+  // Arbeitszeit sekundengenau: die Minuten laut Stempelung plus die Sekunden seit der Kommen-Sekunde.
+  // Kommen um 10:15:50 zeigt so zuerst 0:00:00 und nicht 0:00:50.
+  const kommenSekunde = $derived(tag?.kommenAm ? new Date(tag.kommenAm).getSeconds() : 0);
+  const arbeitSekunden = $derived(
+    Math.max(0, (stand?.ist ?? 0) * 60 + (begonnen && !beendet && !pause ? jetzt.getSeconds() - kommenSekunde : 0))
+  );
 
   // Zeitbalken der Pausenregel
   const fenster = $derived(stand?.fenster ?? null);

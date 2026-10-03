@@ -46,7 +46,7 @@ export function laufenderTag(tage: Map<Datum, Tag>, jetzt: Date = new Date()): {
 export function kommen(tag: Tag | undefined, z: Zeitpunkt): Tag {
   const t = tag ?? leererTag(z.datum);
   if (t.kommen !== null) return t;
-  return { ...t, art: 'arbeit', kommen: z.minute, kommenQuelle: 'live', protokoll: protokolliere(t, z.iso, 'kommen', null, z.minute) };
+  return { ...t, art: 'arbeit', kommen: z.minute, kommenQuelle: 'live', kommenAm: z.iso, protokoll: protokolliere(t, z.iso, 'kommen', null, z.minute) };
 }
 
 export function laufendePause(tag: Tag | undefined) {
