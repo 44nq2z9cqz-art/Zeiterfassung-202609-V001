@@ -1,6 +1,6 @@
 // Backup und Wiederherstellung (Konzept A3, F): eine JSON-Datei mit allen Daten und Schema-Version.
 import { standardEinstellungen } from './einstellungen';
-import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from './modell';
+import type { Auszahlungsantrag, Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from './modell';
 import { type Datum, heute, jahrVon } from './zeit';
 
 export const BACKUP_FORMAT = 'zeiterfassung-202609';
@@ -15,6 +15,8 @@ export interface Backup {
   buchungen: Buchung[];
   /** ab App-Version 0.8 */
   antraege?: Urlaubsantrag[];
+  /** ab App-Version 0.9.12 */
+  auszahlungen?: Auszahlungsantrag[];
   einstellungen: Einstellungen;
 }
 
@@ -27,6 +29,7 @@ export function erstelleBackup(daten: Datenbestand, appVersion: string, jetzt = 
     tage: [...daten.tage.values()],
     buchungen: daten.buchungen,
     antraege: daten.antraege ?? [],
+    auszahlungen: daten.auszahlungen ?? [],
     einstellungen: daten.einstellungen
   };
 }
@@ -76,7 +79,7 @@ export function pruefeBackup(json: unknown): Pruefergebnis {
 
   const sortiert = [...tage].sort((a, x) => a.datum.localeCompare(x.datum));
   return {
-    daten: { tage: new Map(sortiert.map((t) => [t.datum, t])), buchungen, einstellungen, antraege: Array.isArray(b.antraege) ? b.antraege.filter((a) => a && typeof a.id === 'string' && istDatum(a.von) && istDatum(a.bis)) : [] },
+    daten: { tage: new Map(sortiert.map((t) => [t.datum, t])), buchungen, einstellungen, antraege: Array.isArray(b.antraege) ? b.antraege.filter((a) => a && typeof a.id === 'string' && istDatum(a.von) && istDatum(a.bis)) : [], auszahlungen: Array.isArray(b.auszahlungen) ? b.auszahlungen.filter((a) => a && typeof a.id === 'string' && istDatum(a.stichtag) && Array.isArray(a.auszahlungen)) : [] },
     vorschau: {
       erstelltAm: b.erstelltAm ?? '',
       appVersion: b.appVersion,

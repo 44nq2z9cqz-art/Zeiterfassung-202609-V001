@@ -3,7 +3,7 @@ import { erstelleBackup } from '../core/backup';
 import { standardEinstellungen } from '../core/einstellungen';
 import { type Sicherungsgrund, taeglichFaellig, ueberzaehlig } from '../core/sicherungen';
 import type { Pruefbericht } from '../core/import-altapp';
-import type { Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
+import type { Auszahlungsantrag, Buchung, Datenbestand, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
 import { antraegeAusKalender, type Kalenderaenderung } from '../core/urlaubsantrag';
 import { type Datum, heute } from '../core/zeit';
 import { META, db, exportiereAlles, leseMeta, schreibeMeta } from './db';
@@ -14,13 +14,14 @@ class Speicher {
   tage = $state.raw(new Map<Datum, Tag>());
   buchungen = $state.raw<Buchung[]>([]);
   antraege = $state.raw<Urlaubsantrag[]>([]);
+  auszahlungen = $state.raw<Auszahlungsantrag[]>([]);
   einstellungen = $state.raw<Einstellungen>(standardEinstellungen(heute()));
   dauerhaft = $state<boolean | null>(null);
   /** Zeitpunkt des letzten Backups (ISO) */
   letztesBackup = $state<string | undefined>(undefined);
 
   get daten(): Datenbestand {
-    return { tage: this.tage, buchungen: this.buchungen, einstellungen: this.einstellungen, antraege: this.antraege };
+    return { tage: this.tage, buchungen: this.buchungen, einstellungen: this.einstellungen, antraege: this.antraege, auszahlungen: this.auszahlungen };
   }
 
   get hatDaten(): boolean {
@@ -29,14 +30,16 @@ class Speicher {
 
   async laden() {
     try {
-      const [tage, buchungen, einstellungen, letztesBackup, antraege] = await Promise.all([
+      const [tage, buchungen, einstellungen, letztesBackup, antraege, auszahlungen] = await Promise.all([
         db.tage.toArray(),
         db.buchungen.toArray(),
         leseMeta<Einstellungen>(META.einstellungen),
         leseMeta<string>(META.letztesBackup),
-        db.antraege.toArray()
+        db.antraege.toArray(),
+        db.auszahlungen.toArray()
       ]);
       this.antraege = antraege;
+      this.auszahlungen = auszahlungen;
       this.letztesBackup = letztesBackup;
       this.tage = new Map(tage.sort((a, b) => a.datum.localeCompare(b.datum)).map((t) => [t.datum, t]));
       this.buchungen = buchungen;
@@ -202,6 +205,46 @@ class Speicher {
   async loescheBuchung(id: string) {
     this.buchungen = this.buchungen.filter((x) => x.id !== id);
     await db.buchungen.delete(id);
+    // Gehört die Buchung zu einer erfassten Auszahlung, verschwindet auch diese am Antrag
+    const antrag = this.auszahlungen.find((a) => a.auszahlungen.some((r) => r.buchungId === id));
+    if (antrag) await this.speichereAuszahlungsantrag({ ...antrag, auszahlungen: antrag.auszahlungen.filter((r) => r.buchungId !== id) });
+  }
+
+  /** Antrag auf Auszahlung speichern (neu beim Erstellen des PDFs oder geändert). */
+  async speichereAuszahlungsantrag(a: Auszahlungsantrag, buchung?: Buchung) {
+    await db.transaction('rw', db.auszahlungen, db.buchungen, async () => {
+      await db.auszahlungen.put($state.snapshot(a) as Auszahlungsantrag);
+      if (buchung) await db.buchungen.put($state.snapshot(buchung) as Buchung);
+    });
+    this.auszahlungen = [...this.auszahlungen.filter((x) => x.id !== a.id), a];
+    if (buchung) this.buchungen = [...this.buchungen.filter((x) => x.id !== buchung.id), buchung];
+  }
+
+  /** Eine erfasste Auszahlung zurücknehmen: Rate am Antrag und ihre Buchung entfernen. */
+  async loescheRate(antragId: string, rateId: string) {
+    const a = this.auszahlungen.find((x) => x.id === antragId);
+    const rate = a?.auszahlungen.find((r) => r.id === rateId);
+    if (!a || !rate) return;
+    const neu = { ...a, auszahlungen: a.auszahlungen.filter((r) => r.id !== rateId) };
+    await db.transaction('rw', db.auszahlungen, db.buchungen, async () => {
+      await db.auszahlungen.put($state.snapshot(neu) as Auszahlungsantrag);
+      await db.buchungen.delete(rate.buchungId);
+    });
+    this.auszahlungen = this.auszahlungen.map((x) => (x.id === antragId ? neu : x));
+    this.buchungen = this.buchungen.filter((b) => b.id !== rate.buchungId);
+  }
+
+  /** Antrag ganz löschen, samt den Buchungen seiner Auszahlungen. */
+  async loescheAuszahlungsantrag(id: string) {
+    const a = this.auszahlungen.find((x) => x.id === id);
+    if (!a) return;
+    const ids = a.auszahlungen.map((r) => r.buchungId);
+    await db.transaction('rw', db.auszahlungen, db.buchungen, async () => {
+      await db.auszahlungen.delete(id);
+      if (ids.length) await db.buchungen.bulkDelete(ids);
+    });
+    this.auszahlungen = this.auszahlungen.filter((x) => x.id !== id);
+    this.buchungen = this.buchungen.filter((b) => !ids.includes(b.id));
   }
 
   async loescheTage(daten: Datum[]) {
@@ -240,14 +283,16 @@ class Speicher {
     // Der bisherige Stand bleibt als Sicherung in der Liste und lässt sich zurückholen
     if (this.hatDaten) await this.sicherungAnlegen(grund);
     const kopie = await exportiereAlles();
-    await db.transaction('rw', [db.tage, db.buchungen, db.meta, db.antraege], async () => {
+    await db.transaction('rw', [db.tage, db.buchungen, db.meta, db.antraege, db.auszahlungen], async () => {
       await db.meta.put({ schluessel: META.sicherungVorImport, wert: kopie });
       await db.tage.clear();
       await db.buchungen.clear();
       await db.antraege.clear();
+      await db.auszahlungen.clear();
       await db.tage.bulkPut([...daten.tage.values()]);
       await db.buchungen.bulkPut(daten.buchungen);
       await db.antraege.bulkPut(daten.antraege ?? []);
+      await db.auszahlungen.bulkPut(daten.auszahlungen ?? []);
       await db.meta.put({ schluessel: META.einstellungen, wert: daten.einstellungen });
       await db.meta.put(vermerk);
     });

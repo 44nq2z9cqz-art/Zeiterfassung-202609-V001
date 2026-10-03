@@ -14,7 +14,7 @@ import {
   stempelungen,
   type Summen
 } from '../core/berichte';
-import { type Auszahlungsantrag, monatText } from '../core/auszahlung';
+import { type Antragsangaben, monatText } from '../core/auszahlung';
 import { gueltigAm } from '../core/einstellungen';
 import { urlaubskonto } from '../core/konten';
 import { anspruch, antragsliste, antragsstatus } from '../core/urlaubsantrag';
@@ -651,7 +651,7 @@ export function pdfUrlaubsantrag(daten: Datenbestand, jahr: number, heute: Datum
 
 // ─── Antrag auf Auszahlung von Überstunden ───────────────────────────────
 
-export function pdfAuszahlungsantrag(daten: Datenbestand, a: Auszahlungsantrag, heute: Datum): Blob {
+export function pdfAuszahlungsantrag(daten: Datenbestand, a: Antragsangaben, heute: Datum): Blob {
   const doc = neuesDokument(daten, { titel: 'Antrag auf Auszahlung von Überstunden', unter: `Antragsdatum ${datumDE(heute)}` });
   const std = (m: number) => `${hm(m)} Std.`;
   const genehmiger = daten.einstellungen.genehmiger || 'CHE';

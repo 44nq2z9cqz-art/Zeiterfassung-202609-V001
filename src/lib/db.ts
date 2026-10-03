@@ -1,6 +1,6 @@
 // Lokale Datenbank (IndexedDB über Dexie), Konzept F.
 import Dexie, { type Table } from 'dexie';
-import type { Buchung, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
+import type { Auszahlungsantrag, Buchung, Einstellungen, Tag, Urlaubsantrag } from '../core/modell';
 import type { Sicherung } from '../core/sicherungen';
 
 export interface MetaEintrag {
@@ -14,6 +14,7 @@ export class ZeitDB extends Dexie {
   meta!: Table<MetaEintrag, string>;
   antraege!: Table<Urlaubsantrag, string>;
   sicherungen!: Table<Sicherung, string>;
+  auszahlungen!: Table<Auszahlungsantrag, string>;
 
   constructor(name = 'zeiterfassung') {
     super(name);
@@ -30,6 +31,10 @@ export class ZeitDB extends Dexie {
     // Version 3: automatische Sicherungen in der App
     this.version(3).stores({
       sicherungen: 'id, grund, datum'
+    });
+    // Version 4: Anträge auf Auszahlung von Überstunden
+    this.version(4).stores({
+      auszahlungen: 'id, antragsdatum'
     });
   }
 }
@@ -62,6 +67,7 @@ export async function exportiereAlles() {
     tage: await db.tage.toArray(),
     buchungen: await db.buchungen.toArray(),
     antraege: await db.antraege.toArray(),
+    auszahlungen: await db.auszahlungen.toArray(),
     einstellungen: await leseMeta<Einstellungen>(META.einstellungen)
   };
 }

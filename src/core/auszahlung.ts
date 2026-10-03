@@ -1,23 +1,12 @@
 // Antrag auf Auszahlung von Überstunden: Zeitkonto über dem Sockel zu einem Stichtag.
+// Beim Erstellen des PDFs wird der Antrag als „beantragt“ gespeichert; Auszahlungen – auch in
+// Teilbeträgen über mehrere Monate – werden später dagegen gebucht, jeweils zum Monatsletzten.
 import { zeitkontoSaldo } from './konten';
-import type { Buchung, Datenbestand } from './modell';
+import type { Auszahlungsantrag, Auszahlungsrate, Buchung, Datenbestand } from './modell';
 import { type Datum, type Minuten, MONATE, datumDE, dauer, plusTage, zerlege } from './zeit';
 
-export interface Auszahlungsantrag {
-  stichtag: Datum;
-  /** Saldo des Zeitkontos am Ende des Stichtags */
-  saldo: Minuten;
-  sockel: Minuten;
-  /** Saldo über dem Sockel am Stichtag */
-  ueber: Minuten;
-  /** Datum des Abgleichs mit der TiMaS Zeiterfassung */
-  abgleichAm?: Datum;
-  /** Stunden zur Auszahlung in Minuten */
-  stunden: Minuten;
-  /** Monat der Gehaltsabrechnung, z. B. „2026-10“ */
-  abrechnung?: string;
-  bemerkung?: string;
-}
+/** Die Angaben des Formulars – daraus entsteht das PDF und der gespeicherte Antrag. */
+export type Antragsangaben = Omit<Auszahlungsantrag, 'id' | 'antragsdatum' | 'auszahlungen'>;
 
 /** Zeitkonto, Sockel und der Teil darüber am Ende des Stichtags. */
 export function stichtagWerte(daten: Datenbestand, stichtag: Datum, heute: Datum) {
@@ -47,14 +36,44 @@ export function monatText(monat: string): string {
   return j && m ? `${MONATE[m - 1]} ${j}` : '';
 }
 
-export function pruefeAuszahlung(a: Pick<Auszahlungsantrag, 'stunden' | 'ueber'>): string | null {
+/** „2026-10“ → „2026-10-31“ */
+export function monatsletzter(monat: string): Datum {
+  const [j, m] = monat.split('-').map(Number);
+  const folge = m === 12 ? `${j + 1}-01-01` : `${j}-${String(m + 1).padStart(2, '0')}-01`;
+  return plusTage(folge, -1);
+}
+
+export function pruefeAuszahlung(a: Pick<Antragsangaben, 'stunden' | 'ueber'>): string | null {
   if (!(a.stunden > 0)) return 'Bitte die Stunden zur Auszahlung eintragen, z. B. 20:00.';
   if (a.stunden > a.ueber) return `Über dem Sockel stehen am Stichtag nur ${dauer(a.ueber)} Std. zur Verfügung.`;
   return null;
 }
 
-/** Nach der Genehmigung: die Stunden als Auszahlung vom Zeitkonto abbuchen. */
-export function auszahlungsBuchung(a: Auszahlungsantrag, datum: Datum, antragsdatum: Datum): Buchung {
-  const teile = [`laut Antrag vom ${datumDE(antragsdatum)}`, a.abrechnung ? `Abrechnung ${monatText(a.abrechnung)}` : ''];
-  return { id: crypto.randomUUID(), konto: 'zeit', art: 'auszahlung', datum, betrag: -a.stunden, kommentar: teile.filter(Boolean).join(', ') };
+/** Aus den Formularangaben wird beim Erstellen des PDFs ein gespeicherter Antrag. */
+export function neuerAntrag(angaben: Antragsangaben, antragsdatum: Datum): Auszahlungsantrag {
+  return { ...angaben, id: crypto.randomUUID(), antragsdatum, auszahlungen: [] };
+}
+
+export const ausgezahlt = (a: Auszahlungsantrag): Minuten => a.auszahlungen.reduce((s, r) => s + r.stunden, 0);
+export const offen = (a: Auszahlungsantrag): Minuten => Math.max(0, a.stunden - ausgezahlt(a));
+
+export function pruefeRate(a: Auszahlungsantrag, monat: string, stunden: Minuten): string | null {
+  if (!/^\d{4}-\d{2}$/.test(monat)) return 'Bitte den Abrechnungsmonat wählen.';
+  if (!(stunden > 0)) return 'Bitte die ausgezahlten Stunden eintragen.';
+  if (stunden > offen(a)) return `Aus diesem Antrag sind nur noch ${dauer(offen(a))} Std. offen.`;
+  return null;
+}
+
+/** Eine Auszahlung erfassen: Rate am Antrag plus Buchung „Auszahlung“ zum Monatsletzten. */
+export function rateMitBuchung(a: Auszahlungsantrag, monat: string, stunden: Minuten): { rate: Auszahlungsrate; buchung: Buchung; antrag: Auszahlungsantrag } {
+  const buchung: Buchung = {
+    id: crypto.randomUUID(),
+    konto: 'zeit',
+    art: 'auszahlung',
+    datum: monatsletzter(monat),
+    betrag: -stunden,
+    kommentar: `Abrechnung ${monatText(monat)}, laut Antrag vom ${datumDE(a.antragsdatum)}`
+  };
+  const rate: Auszahlungsrate = { id: crypto.randomUUID(), monat, stunden, buchungId: buchung.id };
+  return { rate, buchung, antrag: { ...a, auszahlungen: [...a.auszahlungen, rate].sort((x, y) => x.monat.localeCompare(y.monat)) } };
 }

@@ -129,9 +129,38 @@ export interface Urlaubsantrag {
   erstelltAm: string;
 }
 
+/** Eine (Teil-)Auszahlung zu einem Antrag; die Buchung liegt auf dem Monatsletzten des Abrechnungsmonats */
+export interface Auszahlungsrate {
+  id: string;
+  /** Abrechnungsmonat, z. B. „2026-10“ */
+  monat: string;
+  stunden: Minuten;
+  /** zugehörige Buchung „Auszahlung“ im Zeitkonto */
+  buchungId: string;
+}
+
+/** Gespeicherter Antrag auf Auszahlung von Überstunden (entsteht beim Erstellen des PDFs) */
+export interface Auszahlungsantrag {
+  id: string;
+  antragsdatum: Datum;
+  stichtag: Datum;
+  saldo: Minuten;
+  sockel: Minuten;
+  ueber: Minuten;
+  abgleichAm?: Datum;
+  /** beantragte Stunden */
+  stunden: Minuten;
+  /** gewünschter Abrechnungsmonat laut Antrag, z. B. „2026-10“ */
+  abrechnung?: string;
+  bemerkung?: string;
+  auszahlungen: Auszahlungsrate[];
+}
+
 export interface Datenbestand {
   tage: Map<Datum, Tag>;
   buchungen: Buchung[];
   einstellungen: Einstellungen;
   antraege?: Urlaubsantrag[];
+  /** Anträge auf Auszahlung von Überstunden (ab v0.9.12) */
+  auszahlungen?: Auszahlungsantrag[];
 }

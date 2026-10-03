@@ -1,7 +1,7 @@
 {
   "name": "zeiterfassung",
   "private": true,
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "Persönliche Arbeitszeiterfassung als Web-App für das iPhone",
   "type": "module",
   "scripts": {
