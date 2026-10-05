@@ -197,13 +197,20 @@
           </div>
           <p class="hinweistext">Das Backup wird über das Teilen-Menü gesichert, am besten unter „In Dateien sichern“ → iCloud Drive.</p>
         </Bereich>
-        <Bereich titel="Darstellung" info={DARSTELLUNG.find(([id]) => id === (e.darstellung ?? 'hell'))?.[1] ?? 'Hell'} offen={offen === 'darstellung'} umschalten={() => umschalten('darstellung')}>
+        <Bereich titel="Darstellung" info={`${DARSTELLUNG.find(([id]) => id === (e.darstellung ?? 'hell'))?.[1] ?? 'Hell'} · Haptik ${(e.haptik ?? true) ? 'an' : 'aus'}`} offen={offen === 'darstellung'} umschalten={() => umschalten('darstellung')}>
           <div class="segmente" role="group" aria-label="Darstellung">
             {#each DARSTELLUNG as [id, text] (id)}
               <button type="button" aria-pressed={(e.darstellung ?? 'hell') === id} onclick={() => speicher.speichereEinstellungen({ ...e, darstellung: id })}>{text}</button>
             {/each}
           </div>
           <p class="hinweistext">„Automatisch“ folgt der Einstellung des iPhones, also z. B. abends dunkel.</p>
+          <div class="gruppe">
+            <label class="zeile">
+              <span class="l"><span>Haptisches Feedback<small>leichter Tick beim Stempeln auf „Heute“</small></span></span>
+              <input type="checkbox" class="schalter" id="e-haptik" checked={e.haptik ?? true} onchange={(ev) => speicher.speichereEinstellungen({ ...e, haptik: ev.currentTarget.checked })} />
+            </label>
+          </div>
+          <p class="hinweistext">Kommen, Gehen und Fortsetzen: zwei Ticks, Pause starten und beenden: ein Tick. Funktioniert nur, wenn in den iPhone-Einstellungen unter „Töne & Haptik“ die Systemhaptik an ist.</p>
         </Bereich>
         <Bereich titel="Für Berichte" info={[e.name, e.personalnummer ? `Nr. ${e.personalnummer}` : '', e.genehmiger ?? 'CHE'].filter(Boolean).join(' · ')} offen={offen === 'berichte'} umschalten={() => umschalten('berichte')}>
           <div class="gruppe">

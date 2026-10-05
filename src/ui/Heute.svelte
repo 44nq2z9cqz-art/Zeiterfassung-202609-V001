@@ -19,6 +19,7 @@
   import { speicher } from '../lib/speicher.svelte';
   import { tageSeitBackup } from '../core/backup';
   import { backupSichern } from '../lib/sichern';
+  import { haptik, type Haptikmuster } from '../lib/haptik';
   import Ring from './Ring.svelte';
   import { symbole } from './symbole';
   import Titel from './Titel.svelte';
@@ -140,13 +141,18 @@
     return { datum: l.datum, minute: l.minute, iso: d.toISOString() };
   }
 
-  async function ausfuehren(aktion: (z: Zeitpunkt, t: Tag | undefined) => { tag: Tag; text: string } | null) {
-    if (beschaeftigt) return; // Schutz vor Doppeltippen
+  // Haptik: Kommen/Gehen Doppel-Tick, Pause einfacher Tick (dreifach, falls ein Tipp abgelehnt wird)
+  const fuehlen = (m: Haptikmuster) => haptik(m, e.haptik ?? true);
+
+  async function ausfuehren(aktion: (z: Zeitpunkt, t: Tag | undefined) => { tag: Tag; text: string } | null, muster: Haptikmuster = 'einfach') {
+    if (beschaeftigt) return fuehlen('fehler'); // Schutz vor Doppeltippen
     beschaeftigt = true;
     try {
       const z = zeitpunkt();
       const ergebnis = aktion(z, speicher.tage.get(z.datum));
       if (ergebnis) {
+        // noch im Tipp-Ereignis, sonst lässt iOS die Haptik nicht zu
+        fuehlen(muster);
         await speicher.speichereTag(ergebnis.tag);
         zeige(ergebnis.text);
       }
@@ -157,7 +163,7 @@
     }
   }
 
-  const aufKommen = () => ausfuehren((z, t) => ({ tag: kommen(t, z), text: `Kommen ${uhrzeit(z.minute)} gestempelt` }));
+  const aufKommen = () => ausfuehren((z, t) => ({ tag: kommen(t, z), text: `Kommen ${uhrzeit(z.minute)} gestempelt` }), 'doppel');
   const aufPauseStart = () => ausfuehren((z, t) => (t ? { tag: pauseStarten(t, z), text: `Pause seit ${uhrzeit(z.minute)}` } : null));
   const aufPauseEnde = () =>
     ausfuehren((z, t) => {
@@ -167,9 +173,9 @@
     });
   const aufGehen = () => {
     gehenFragen = false;
-    ausfuehren((z, t) => (t ? { tag: gehen(t, z), text: `Gehen ${uhrzeit(z.minute)} gestempelt` } : null));
+    ausfuehren((z, t) => (t ? { tag: gehen(t, z), text: `Gehen ${uhrzeit(z.minute)} gestempelt` } : null), 'doppel');
   };
-  const aufFortsetzen = () => ausfuehren((z, t) => (t ? { tag: fortsetzen(t, z), text: 'Arbeitstag läuft weiter' } : null));
+  const aufFortsetzen = () => ausfuehren((z, t) => (t ? { tag: fortsetzen(t, z), text: 'Arbeitstag läuft weiter' } : null), 'doppel');
 
   const ARTEN: Record<string, string> = { urlaub: 'Urlaub', krank: 'Krank', gleittag: 'Gleittag' };
 </script>

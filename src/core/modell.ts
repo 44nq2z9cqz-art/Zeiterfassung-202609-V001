@@ -102,6 +102,8 @@ export interface Einstellungen {
   name: string;
   personalnummer: string;
   hinweise: Hinweise;
+  /** Haptisches Feedback beim Stempeln (Standard an) */
+  haptik?: boolean;
   /** Hell, Dunkel oder dem iPhone folgen (Standard hell) */
   darstellung?: 'hell' | 'dunkel' | 'auto';
   /** Abzüge auf eine Überstunden-Auszahlung in Prozent, für die Netto-Schätzung */

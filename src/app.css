@@ -260,6 +260,14 @@ label:focus-within {
   background: var(--fill);
   color: var(--label);
 }
+/* Knöpfe geben beim Antippen sichtbar nach */
+.knopf {
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.knopf:active:not(:disabled) {
+  transform: scale(0.96);
+  filter: brightness(0.94);
+}
 .knopf:disabled {
   opacity: 0.45;
 }
