@@ -3,9 +3,6 @@
   import { tageSeitBackup } from '../core/backup';
   import { gueltigAm } from '../core/einstellungen';
   import { gesetzAktiv } from '../core/regeln';
-  import { haptik } from '../lib/haptik';
-  // iOS-Schalter-Attribut (seit iOS 17.4), den Typen von Svelte noch unbekannt
-  const SCHALTER: Record<string, string> = { switch: '' };
   import { type Datum, datumDE, dauer, uhrzeit } from '../core/zeit';
   import { backupSichern } from '../lib/sichern';
   import { speicher } from '../lib/speicher.svelte';
@@ -209,28 +206,11 @@
           <p class="hinweistext">„Automatisch“ folgt der Einstellung des iPhones, also z. B. abends dunkel.</p>
           <div class="gruppe">
             <label class="zeile">
-              <span class="l"><span>Haptisches Feedback<small>leichter Tick beim Stempeln auf „Heute“</small></span></span>
+              <span class="l"><span>Haptisches Feedback<small>leichter Tick bei jedem Stempel-Knopf auf „Heute“</small></span></span>
               <input type="checkbox" class="schalter" id="e-haptik" checked={e.haptik ?? true} onchange={(ev) => speicher.speichereEinstellungen({ ...e, haptik: ev.currentTarget.checked })} />
             </label>
           </div>
-          <p class="hinweistext">Kommen, Gehen und Fortsetzen: zwei Ticks, Pause starten und beenden: ein Tick. Funktioniert nur, wenn in den iPhone-Einstellungen unter „Töne & Haptik“ die Systemhaptik an ist.</p>
-
-          <!-- Vorübergehender Test: welcher Weg zur Haptik funktioniert in der Home-Bildschirm-App? -->
-          <h3 class="testtitel">Haptik-Test</h3>
-          <div class="gruppe">
-            <button type="button" class="zeile" onclick={() => haptik('einfach')}>
-              <span class="l"><span>A · App löst den Tick aus<small>so wie jetzt beim Stempeln</small></span></span><span class="w">antippen</span>
-            </button>
-            <label class="zeile">
-              <span class="l"><span>B · Finger tippt unsichtbaren Schalter<small>ganze Zeile antippen</small></span></span><span class="w">antippen</span>
-              <input type="checkbox" {...SCHALTER} class="unsichtbar" />
-            </label>
-            <label class="zeile">
-              <span class="l"><span>C · Echter iOS-Schalter<small>den Schalter rechts umlegen</small></span></span>
-              <input type="checkbox" {...SCHALTER} class="nativ" />
-            </label>
-          </div>
-          <p class="hinweistext">Bitte jede Zeile antippen und mir sagen, bei welchen du einen Tick spürst.</p>
+          <p class="hinweistext">Funktioniert nur, wenn in den iPhone-Einstellungen unter „Töne & Haptik“ die Systemhaptik an ist.</p>
         </Bereich>
         <Bereich titel="Für Berichte" info={[e.name, e.personalnummer ? `Nr. ${e.personalnummer}` : '', e.genehmiger ?? 'CHE'].filter(Boolean).join(' · ')} offen={offen === 'berichte'} umschalten={() => umschalten('berichte')}>
           <div class="gruppe">
@@ -276,25 +256,6 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
-  }
-  .testtitel {
-    margin: 4px 16px -6px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--label2);
-  }
-  .unsichtbar {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
-  }
-  .nativ {
-    appearance: auto;
-    -webkit-appearance: auto;
   }
   .bereiche {
     display: flex;

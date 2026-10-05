@@ -19,7 +19,7 @@
   import { speicher } from '../lib/speicher.svelte';
   import { tageSeitBackup } from '../core/backup';
   import { backupSichern } from '../lib/sichern';
-  import { haptik, type Haptikmuster } from '../lib/haptik';
+  import HaptikKnopf from './HaptikKnopf.svelte';
   import Ring from './Ring.svelte';
   import { symbole } from './symbole';
   import Titel from './Titel.svelte';
@@ -141,18 +141,16 @@
     return { datum: l.datum, minute: l.minute, iso: d.toISOString() };
   }
 
-  // Haptik: Kommen/Gehen Doppel-Tick, Pause einfacher Tick (dreifach, falls ein Tipp abgelehnt wird)
-  const fuehlen = (m: Haptikmuster) => haptik(m, e.haptik ?? true);
+  // Haptischer Tick über die Stempel-Knöpfe selbst (HaptikKnopf), abschaltbar in den Einstellungen
+  const hap = $derived(e.haptik ?? true);
 
-  async function ausfuehren(aktion: (z: Zeitpunkt, t: Tag | undefined) => { tag: Tag; text: string } | null, muster: Haptikmuster = 'einfach') {
-    if (beschaeftigt) return fuehlen('fehler'); // Schutz vor Doppeltippen
+  async function ausfuehren(aktion: (z: Zeitpunkt, t: Tag | undefined) => { tag: Tag; text: string } | null) {
+    if (beschaeftigt) return; // Schutz vor Doppeltippen
     beschaeftigt = true;
     try {
       const z = zeitpunkt();
       const ergebnis = aktion(z, speicher.tage.get(z.datum));
       if (ergebnis) {
-        // noch im Tipp-Ereignis, sonst lässt iOS die Haptik nicht zu
-        fuehlen(muster);
         await speicher.speichereTag(ergebnis.tag);
         zeige(ergebnis.text);
       }
@@ -163,7 +161,7 @@
     }
   }
 
-  const aufKommen = () => ausfuehren((z, t) => ({ tag: kommen(t, z), text: `Kommen ${uhrzeit(z.minute)} gestempelt` }), 'doppel');
+  const aufKommen = () => ausfuehren((z, t) => ({ tag: kommen(t, z), text: `Kommen ${uhrzeit(z.minute)} gestempelt` }));
   const aufPauseStart = () => ausfuehren((z, t) => (t ? { tag: pauseStarten(t, z), text: `Pause seit ${uhrzeit(z.minute)}` } : null));
   const aufPauseEnde = () =>
     ausfuehren((z, t) => {
@@ -173,9 +171,9 @@
     });
   const aufGehen = () => {
     gehenFragen = false;
-    ausfuehren((z, t) => (t ? { tag: gehen(t, z), text: `Gehen ${uhrzeit(z.minute)} gestempelt` } : null), 'doppel');
+    ausfuehren((z, t) => (t ? { tag: gehen(t, z), text: `Gehen ${uhrzeit(z.minute)} gestempelt` } : null));
   };
-  const aufFortsetzen = () => ausfuehren((z, t) => (t ? { tag: fortsetzen(t, z), text: 'Arbeitstag läuft weiter' } : null), 'doppel');
+  const aufFortsetzen = () => ausfuehren((z, t) => (t ? { tag: fortsetzen(t, z), text: 'Arbeitstag läuft weiter' } : null));
 
   const ARTEN: Record<string, string> = { urlaub: 'Urlaub', krank: 'Krank', gleittag: 'Gleittag' };
 </script>
@@ -316,16 +314,16 @@
 
   <div class="knoepfe" class:einzeln={!begonnen || beendet}>
     {#if !begonnen}
-      <button type="button" class="knopf haupt gross-knopf" disabled={beschaeftigt} onclick={aufKommen}>Kommen</button>
+      <HaptikKnopf klasse="knopf haupt gross-knopf" disabled={beschaeftigt} haptik={hap} aktion={aufKommen}>Kommen</HaptikKnopf>
     {:else if beendet}
-      <button type="button" class="knopf neben" disabled={beschaeftigt} onclick={aufFortsetzen}>Arbeitstag fortsetzen</button>
+      <HaptikKnopf klasse="knopf neben" disabled={beschaeftigt} haptik={hap} aktion={aufFortsetzen}>Arbeitstag fortsetzen</HaptikKnopf>
     {:else}
       {#if pause}
-        <button type="button" class="knopf haupt pausenknopf" disabled={beschaeftigt} onclick={aufPauseEnde}>Pause beenden</button>
+        <HaptikKnopf klasse="knopf haupt pausenknopf" disabled={beschaeftigt} haptik={hap} aktion={aufPauseEnde}>Pause beenden</HaptikKnopf>
       {:else}
-        <button type="button" class="knopf haupt" disabled={beschaeftigt} onclick={aufPauseStart}>Pause starten</button>
+        <HaptikKnopf klasse="knopf haupt" disabled={beschaeftigt} haptik={hap} aktion={aufPauseStart}>Pause starten</HaptikKnopf>
       {/if}
-      <button type="button" class="knopf neben" disabled={beschaeftigt} onclick={() => (gehenFragen = true)}>Gehen</button>
+      <HaptikKnopf klasse="knopf neben" disabled={beschaeftigt} haptik={hap} aktion={() => (gehenFragen = true)}>Gehen</HaptikKnopf>
     {/if}
   </div>
 {/if}
@@ -338,7 +336,7 @@
   <div class="abdunkeln" role="presentation" onclick={() => (gehenFragen = false)}></div>
   <div class="frage" role="dialog" aria-modal="true" aria-label="Arbeitstag beenden">
     <p><b>Arbeitstag beenden?</b><br />Gehen um {uhrzeit(lauf.minute)} stempeln{pause ? ', die laufende Pause wird beendet' : ''}.</p>
-    <button type="button" class="knopf haupt" onclick={aufGehen}>Gehen</button>
+    <HaptikKnopf klasse="knopf haupt" haptik={hap} aktion={aufGehen}>Gehen</HaptikKnopf>
     <button type="button" class="knopf neben" onclick={() => (gehenFragen = false)}>Abbrechen</button>
   </div>
 {/if}
@@ -409,7 +407,7 @@
   .platzhalter {
     visibility: hidden;
   }
-  .pausenknopf {
+  :global(.pausenknopf) {
     background: var(--lemon);
     color: var(--night);
     box-shadow: inset 0 0 0 1.5px rgba(16, 19, 26, 0.14);
@@ -547,7 +545,7 @@
   .knoepfe.einzeln {
     grid-template-columns: 1fr;
   }
-  .gross-knopf {
+  :global(.gross-knopf) {
     padding: 19px 12px;
     font-size: 19px;
   }
