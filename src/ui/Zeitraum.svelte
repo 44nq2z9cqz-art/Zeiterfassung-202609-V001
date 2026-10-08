@@ -1,7 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { zeitraumSetzen } from '../core/bearbeiten';
-  import { WOCHENTAGE_KURZ, type Datum, datumDE, wochentag } from '../core/zeit';
+  import type { Urlaubsantrag } from '../core/modell';
+  import { antragTage, pruefeAntrag } from '../core/urlaubsantrag';
+  import { WOCHENTAGE_KURZ, type Datum, datumDE, jahrVon, wochentag } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
   import Blatt from './Blatt.svelte';
 
@@ -13,6 +15,20 @@
   let von = $state(untrack(() => vorschlag));
   let bis = $state(untrack(() => vorschlag));
   let fertig = $state<string | null>(null);
+  let fehler = $state<string | null>(null);
+
+  // Urlaub wird als Plan angelegt (je Kalenderjahr ein Eintrag); erst die Genehmigung trägt ihn voll ein
+  const abschnitte = $derived.by(() => {
+    if (!gueltig) return [] as [Datum, Datum][];
+    const liste: [Datum, Datum][] = [];
+    for (let j = jahrVon(von); j <= jahrVon(bis); j++) {
+      const a = von > `${j}-01-01` ? von : `${j}-01-01`;
+      const b = bis < `${j}-12-31` ? bis : `${j}-12-31`;
+      if (antragTage(a, b) > 0) liste.push([a, b]);
+    }
+    return liste;
+  });
+  const planTage = $derived(abschnitte.reduce((s, [a, b]) => s + antragTage(a, b), 0));
 
   // „Bis“ folgt „Von“: Ein neuer Beginn setzt das Ende mit, wenn es davor liegt oder bisher gleich war
   let letztesVon = untrack(() => vorschlag);
@@ -26,12 +42,25 @@
 
   const gueltig = $derived(!!von && !!bis && von <= bis);
   const vorschau = $derived(gueltig ? zeitraumSetzen(speicher.tage, von, bis, art, '') : null);
-  const anzahl = $derived(vorschau ? (art === 'entfernen' ? vorschau.geaendert.length + vorschau.geloescht.length : vorschau.geaendert.length) : 0);
+  const anzahl = $derived(art === 'urlaub' ? planTage : vorschau ? (art === 'entfernen' ? vorschau.geaendert.length + vorschau.geloescht.length : vorschau.geaendert.length) : 0);
   const wort = $derived(art === 'krank' ? (anzahl === 1 ? 'Krankheitstag' : 'Krankheitstage') : anzahl === 1 ? 'Urlaubstag' : 'Urlaubstage');
   const lang = (d: Datum) => `${WOCHENTAGE_KURZ[wochentag(d)]} ${datumDE(d)}`;
   const kurzListe = (liste: Datum[]) => (liste.length <= 3 ? liste.map(datumDE).join(', ') : `${liste.slice(0, 3).map(datumDE).join(', ')} und ${liste.length - 3} weitere`);
 
+  async function planAnlegen() {
+    fehler = null;
+    const neu: Urlaubsantrag[] = abschnitte.map(([a, b]) => ({ id: crypto.randomUUID(), von: a, bis: b, genehmigt: false, plan: true, erstelltAm: new Date().toISOString() }));
+    for (const a of neu) {
+      const f = pruefeAntrag(a, [...speicher.antraege, ...neu.filter((x) => x !== a)]);
+      if (f) return (fehler = f);
+    }
+    for (const a of neu) await speicher.speichereAntrag(a, { speichern: [], loeschen: [] });
+    const t = String(planTage).replace('.', ',');
+    fertig = `Urlaub ${datumDE(von)} – ${datumDE(bis)} als Plan angelegt (${t} ${planTage === 1 ? 'Tag' : 'Tage'}). Beantragen und genehmigen unter Konten → Buchungen und Anträge.`;
+  }
+
   async function sichern() {
+    if (art === 'urlaub') return planAnlegen();
     const echt = zeitraumSetzen(speicher.tage, von, bis, art, new Date().toISOString());
     if (echt.geaendert.length) await speicher.speichereTage(echt.geaendert);
     if (echt.geloescht.length) await speicher.loescheTage(echt.geloescht);
@@ -39,7 +68,7 @@
     fertig =
       art === 'entfernen'
         ? `Bei ${n} ${n === 1 ? 'Tag' : 'Tagen'} wurde Urlaub bzw. Krankheit entfernt.`
-        : `${n} ${n === 1 ? 'Tag' : 'Tage'} als ${art === 'urlaub' ? 'Urlaub' : 'Krank'} eingetragen (${datumDE(von)} – ${datumDE(bis)}).`;
+        : `${n} ${n === 1 ? 'Tag' : 'Tage'} als Krank eingetragen (${datumDE(von)} – ${datumDE(bis)}).`;
   }
 </script>
 
@@ -63,7 +92,11 @@
     {:else if vorschau}
       <div class="gruppe">
         <div class="zeile"><span class="l">Zeitraum</span><span class="w">{von === bis ? lang(von) : `${lang(von)} – ${lang(bis)}`}</span></div>
-        {#if art === 'entfernen'}
+        {#if art === 'urlaub'}
+          <div class="zeile"><span class="l"><b>Wird als Plan angelegt</b></span><span class="w stark">{String(planTage).replace('.', ',')} {planTage === 1 ? 'Urlaubstag' : 'Urlaubstage'}</span></div>
+          {#if abschnitte.length > 1}<div class="zeile"><span class="l leise">Über den Jahreswechsel: zwei Pläne, je Jahr einer</span></div>{/if}
+          <p class="hinweistext innen">Bis zur Genehmigung steht der Urlaub gestrichelt im Kalender. Beantragen und genehmigen unter Konten → Buchungen und Anträge.</p>
+        {:else if art === 'entfernen'}
           <div class="zeile"><span class="l"><b>Urlaub/Krank entfernen</b></span><span class="w stark">{anzahl} {anzahl === 1 ? 'Tag' : 'Tage'}</span></div>
           <p class="hinweistext innen">Die Tage werden wieder zu normalen Tagen. Gestempelte Zeiten bleiben erhalten.</p>
         {:else}
@@ -83,8 +116,9 @@
       {/if}
     {/if}
 
+    {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
     <button type="button" class="knopf haupt" disabled={!gueltig || anzahl === 0} onclick={sichern}>
-      {art === 'entfernen' ? 'Entfernen' : 'Eintragen'}
+      {art === 'entfernen' ? 'Entfernen' : art === 'urlaub' ? 'Als Plan anlegen' : 'Eintragen'}
     </button>
     <button type="button" class="knopf neben" onclick={schliessen}>Abbrechen</button>
   {/if}

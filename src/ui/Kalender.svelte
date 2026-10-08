@@ -1,7 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { tagesreihe } from '../core/konten';
-  import { MONATE, WOCHENTAGE_KURZ, type Datum, datumAus, datumDE, dauer, plusTage, uhrzeit, wochentag, zerlege } from '../core/zeit';
+  import { urlaubstagWert } from '../core/regeln';
+  import { MONATE, WOCHENTAGE_KURZ, type Datum, datumAus, datumDE, dauer, plusTage, tageVonBis, uhrzeit, wochentag, zerlege } from '../core/zeit';
   import { speicher } from '../lib/speicher.svelte';
   import TagBearbeiten from './TagBearbeiten.svelte';
   import Titel from './Titel.svelte';
@@ -52,6 +53,17 @@
     gewaehlt = heute;
   }
 
+  // Geplanter und beantragter Urlaub (noch nicht genehmigt) erscheint im Kalender erkennbar anders
+  const planTage = $derived.by(() => {
+    const m = new Map<Datum, { status: 'geplant' | 'beantragt'; von: Datum; bis: Datum }>();
+    for (const a of speicher.antraege) {
+      if (a.genehmigt || a.gestrichen) continue;
+      for (const d of tageVonBis(a.von, a.bis)) if (urlaubstagWert(d) > 0) m.set(d, { status: a.plan ? 'geplant' : 'beantragt', von: a.von, bis: a.bis });
+    }
+    return m;
+  });
+  const planGewaehlt = $derived(planTage.get(gewaehlt));
+
   const zeile = $derived(zeilen.find((z) => z.datum === gewaehlt));
   const tag = $derived(speicher.tage.get(gewaehlt));
 
@@ -95,6 +107,7 @@
     {#each zeilen as z (z.datum)}
       {@const k = kurztext(z)}
       {@const wt = wochentag(z.datum)}
+      {@const p = z.status !== 'urlaub' ? planTage.get(z.datum) : undefined}
       <button
         type="button"
         class="tag"
@@ -102,11 +115,13 @@
         class:gewaehlt={z.datum === gewaehlt}
         class:heute={z.datum === heute}
         class:zukunft={z.datum > heute}
+        class:geplant={p?.status === 'geplant'}
+        class:beantragt={p?.status === 'beantragt'}
         aria-label="{datumDE(z.datum)}, {STATUS[z.status]}{k.text ? ', ' + k.text : ''}"
         onclick={() => (gewaehlt === z.datum ? (bearbeiten = z.datum) : (gewaehlt = z.datum))}
       >
         <b>{zerlege(z.datum)[2]}</b>
-        <em class={k.klasse}>{k.text}</em>
+        <em class={p && !k.text ? 'art' : k.klasse}>{p && !k.text ? p.status : k.text}</em>
         {#if z.zuschlag > 0}<span class="plakette mini">!</span>{/if}
         {#if z.status === 'ohneEintrag' || z.status === 'unvollstaendig'}<span class="punkt"></span>{/if}
       </button>
@@ -115,6 +130,8 @@
   <div class="legende">
     <span><span class="plakette mini statisch">!</span> Pausenzeitverletzung</span>
     <span><span class="punkt statisch"></span> Ohne Eintrag</span>
+    <span><span class="muster geplant"></span> geplant</span>
+    <span><span class="muster beantragt"></span> beantragt</span>
   </div>
 
   {#if zeile}
@@ -128,6 +145,9 @@
           <span class="l">{uhrzeit(tag.kommen)} – {tag.gehen !== null ? uhrzeit(tag.gehen) : '…'} · {tag.pausen.length} {tag.pausen.length === 1 ? 'Pause' : 'Pausen'}</span>
           <span class="w">{zeile.ist !== null ? `Ist ${dauer(zeile.ist)}` : ''}</span>
         </div>
+      {/if}
+      {#if planGewaehlt && zeile.status !== 'urlaub'}
+        <div class="zeile"><span class="l"><span>Urlaub {planGewaehlt.status}<small>{datumDE(planGewaehlt.von).slice(0, 6)} – {datumDE(planGewaehlt.bis)} · weiter unter Konten → Buchungen und Anträge</small></span></span></div>
       {/if}
       {#if zeile.zuschlag > 0}
         <div class="zeile"><span class="l"><span class="plakette">!</span>Pausenzeitverletzung</span><span class="w stark">{dauer(-zeile.zuschlag, true)}</span></div>
@@ -279,6 +299,26 @@
   .punkt.statisch {
     position: static;
     display: inline-block;
+  }
+  /* Urlaub geplant: gestrichelter Rahmen, beantragt: schraffiert */
+  .tag.geplant {
+    outline: 1.5px dashed var(--label3);
+    outline-offset: -2px;
+  }
+  .tag.beantragt {
+    background: repeating-linear-gradient(135deg, var(--fill) 0 3px, transparent 3px 7px);
+  }
+  .muster {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+  }
+  .muster.geplant {
+    outline: 1.5px dashed var(--label3);
+    outline-offset: -1.5px;
+  }
+  .muster.beantragt {
+    background: repeating-linear-gradient(135deg, var(--label3) 0 2px, transparent 2px 5px);
   }
   .legende {
     display: flex;

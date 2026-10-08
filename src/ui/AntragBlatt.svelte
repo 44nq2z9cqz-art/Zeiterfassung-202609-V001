@@ -58,6 +58,7 @@
       genehmigt,
       genehmigtAm: genehmigt ? genehmigtAm || undefined : undefined,
       gestrichen: a0?.gestrichen,
+      beantragtAm: a0?.beantragtAm,
       erstelltAm: a0?.erstelltAm ?? new Date().toISOString()
     };
   }
@@ -65,7 +66,7 @@
   /** `beantragen`: aus dem Plan wird ein Antrag, danach das PDF */
   async function sichern(beantragen = false, mitPdf = beantragen) {
     fehler = null;
-    const neu = baue(beantragen ? false : istPlan);
+    const neu = { ...baue(beantragen ? false : istPlan), ...(beantragen ? { beantragtAm: heute } : {}) };
     const f = pruefeAntrag(neu, speicher.antraege);
     if (f) return (fehler = f);
     await speicher.speichereAntrag(neu, kalenderFuer(speicher.tage, a0 ?? null, neu, new Date().toISOString()));

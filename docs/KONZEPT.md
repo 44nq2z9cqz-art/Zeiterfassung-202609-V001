@@ -173,6 +173,21 @@ Die Tagesart „Feiertag“ lässt sich nicht mehr von Hand setzen, weil die Ber
 
 ---
 
+### B7 Buchungen und Anträge (Journal) ✅ (v1.0)
+
+Konten zeigt nur noch die beiden Kacheln und den Knopf **„Buchungen und Anträge“** mit einer Kurzinfo zu offenen Vorgängen.
+Das Journal ist eine eigene Seite in eigener Farbwelt (Papier #F3F2EE, Tinte #151515, Signal Orange #FF5A1F; Vorgänge im dunklen Antrags-Screen):
+
+- Reiter **Zeitkonto | Urlaub**, Jahreswahl, Saldo bzw. Rest, Filter **Alle | Offen**, Einträge je Monat, neueste oben, mit Saldo nach jeder Zeile.
+- **Buchungen:** Zeitkonto Vortrag, Abgleich TiMaS (Differenz zum Saldo laut TiMaS), Korrektur; Urlaub Sonderurlaub, Korrektur.
+  „+“ öffnet ein Blatt mit dem Typ als Auswahlliste (auf dem iPhone ein Scrollrad).
+- **Automatisch:** je Monat „Arbeitszeit“ (eingeklappt, aufklappbar mit Ist/Soll/Zuschlägen); Urlaub: Jahresanspruch und Übertrag am 01.01.
+- **Vorgang Auszahlung Überstunden:** Beantragt (PDF) → Genehmigt (Datum, CHE) → Teilzahlungen je Abrechnungsmonat (Buchung zum Monatsletzten) → Vollständig ausgezahlt (automatisch).
+- **Vorgang Planung (Urlaub):** Geplant → Beantragt (Urlaubsschein) → Genehmigt (Kalender) → Genommen (automatisch nach dem letzten Tag); Gestrichen bleibt sichtbar.
+  Bis zur Genehmigung löschbar, danach nur streichen. Typ „Auszahlung“ im Urlaubskonto gibt es bewusst nicht.
+- **Kalender:** „Zeitraum → Urlaub“ legt einen Plan an (über den Jahreswechsel je Jahr einer). Geplant erscheint gestrichelt, beantragt schraffiert, genehmigt voll.
+- Datenmodell: unverändert bis auf `genehmigtAm` (Auszahlung) und `beantragtAm` (Planung); das Journal ist eine Sicht auf Buchungen, Urlaubsanträge und Auszahlungsanträge.
+
 ## C – Erfassung und Bedienung (Entwurf, siehe Artifact Version 3)
 
 **Navigation:** Unten eine Tab-Leiste mit Heute, Kalender, Konten und Berichte. Die Einstellungen öffnen sich über das Zahnrad oben rechts.

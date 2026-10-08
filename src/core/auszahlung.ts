@@ -6,7 +6,15 @@ import type { Auszahlungsantrag, Auszahlungsrate, Buchung, Datenbestand } from '
 import { type Datum, type Minuten, MONATE, datumDE, dauer, plusTage, zerlege } from './zeit';
 
 /** Die Angaben des Formulars – daraus entsteht das PDF und der gespeicherte Antrag. */
-export type Antragsangaben = Omit<Auszahlungsantrag, 'id' | 'antragsdatum' | 'auszahlungen'>;
+export type Antragsangaben = Omit<Auszahlungsantrag, 'id' | 'antragsdatum' | 'auszahlungen' | 'genehmigtAm'>;
+
+export type Auszahlungsstatus = 'beantragt' | 'genehmigt' | 'teilweise' | 'ausgezahlt';
+
+/** Status eines Auszahlungsantrags; Auszahlungen ohne erfasste Genehmigung (ältere Daten) gelten als genehmigt. */
+export function auszahlungsstatus(a: Auszahlungsantrag): Auszahlungsstatus {
+  if (a.auszahlungen.length) return offen(a) === 0 ? 'ausgezahlt' : 'teilweise';
+  return a.genehmigtAm ? 'genehmigt' : 'beantragt';
+}
 
 /** Zeitkonto, Sockel und der Teil darüber am Ende des Stichtags. */
 export function stichtagWerte(daten: Datenbestand, stichtag: Datum, heute: Datum) {

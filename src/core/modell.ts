@@ -125,6 +125,8 @@ export interface Urlaubsantrag {
   vertretung?: string;
   /** Nur geplant (Simulation): zählt mit, ist aber noch nicht beantragt und erscheint nicht im PDF */
   plan?: boolean;
+  /** Tag, an dem der Urlaubsschein erstellt wurde (ab v1.0) */
+  beantragtAm?: Datum;
   /** Erst genehmigte Anträge stehen als Urlaub im Kalender */
   genehmigt: boolean;
   genehmigtAm?: Datum;
@@ -157,6 +159,8 @@ export interface Auszahlungsantrag {
   /** gewünschter Abrechnungsmonat laut Antrag, z. B. „2026-10“ */
   abrechnung?: string;
   bemerkung?: string;
+  /** Genehmigung durch die Geschäftsleitung (ab v1.0) */
+  genehmigtAm?: Datum;
   auszahlungen: Auszahlungsrate[];
 }
 

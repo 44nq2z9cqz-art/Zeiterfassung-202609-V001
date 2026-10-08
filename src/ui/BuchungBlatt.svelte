@@ -12,8 +12,9 @@
     art: startArt,
     vorhanden,
     heute,
-    schliessen
-  }: { konto: Konto; art: Buchungsart; vorhanden?: Buchung; heute: Datum; schliessen: () => void } = $props();
+    schliessen,
+    vorgang
+  }: { konto: Konto; art: Buchungsart; vorhanden?: Buchung; heute: Datum; schliessen: () => void; vorgang?: (typ: 'auszahlung' | 'planung') => void } = $props();
 
   const b0 = untrack(() => vorhanden);
   const stundenText = (m: number) => `${Math.floor(Math.abs(m) / 60)}:${String(Math.abs(m) % 60).padStart(2, '0')}`;
@@ -34,7 +35,15 @@
   let fehler = $state<string | null>(null);
   let loeschenFragen = $state(false);
 
-  const arten = $derived(konto === 'zeit' ? ARTEN_ZEIT : ARTEN_URLAUB);
+  // Neue Einträge: Auszahlung und Resturlaub gibt es nur noch als Vorgang bzw. automatisch; ältere Buchungen bleiben bearbeitbar
+  const arten = $derived((konto === 'zeit' ? ARTEN_ZEIT : ARTEN_URLAUB).filter((a) => b0?.art === a || (a !== 'auszahlung' && a !== 'resturlaub')));
+  const TYPNAME = (a: Buchungsart) => (a === 'abgleich' ? 'Abgleich TiMaS' : ART_NAMEN[a]);
+  function typWaehlen(ev: Event) {
+    const wert = (ev.currentTarget as HTMLSelectElement).value;
+    if (wert === 'auszahlung-vorgang') return vorgang?.('auszahlung');
+    if (wert === 'planung') return vorgang?.('planung');
+    artWaehlen(wert as Buchungsart);
+  }
   const mitVorzeichen = $derived(art === 'vortrag' || art === 'korrektur');
 
   function artWaehlen(a: Buchungsart) {
@@ -78,16 +87,22 @@
   }
 </script>
 
-<Blatt titel={b0 ? 'Buchung ändern' : konto === 'zeit' ? 'Buchung Zeitkonto' : 'Buchung Urlaubskonto'} {schliessen}>
+<Blatt titel={b0 ? 'Buchung ändern' : konto === 'zeit' ? 'Neuer Eintrag · Zeitkonto' : 'Neuer Eintrag · Urlaub'} {schliessen}>
   {#if loeschenFragen}
     <p class="hinweistext mitte">{ART_NAMEN[art]} vom {datumDE(datum)} wirklich löschen?</p>
     <button type="button" class="knopf haupt rot-voll" onclick={loeschen}>Buchung löschen</button>
     <button type="button" class="knopf neben" onclick={() => (loeschenFragen = false)}>Abbrechen</button>
   {:else}
-    <div class="segmente klein">
-      {#each arten as a (a)}
-        <button type="button" aria-pressed={art === a} onclick={() => artWaehlen(a)}>{a === 'abgleich' ? 'Abgleich' : a === 'resturlaub' ? 'Resturlaub' : ART_NAMEN[a]}</button>
-      {/each}
+    <div class="gruppe">
+      <label class="zeile">
+        <span class="l">Typ</span>
+        <select class="feld" id="b-typ" value={art} onchange={typWaehlen} disabled={!!b0}>
+          {#each arten as a (a)}<option value={a}>{TYPNAME(a)}</option>{/each}
+          {#if !b0 && vorgang}
+            {#if konto === 'zeit'}<option value="auszahlung-vorgang">Auszahlung Überstunden …</option>{:else}<option value="planung">Planung (Urlaub) …</option>{/if}
+          {/if}
+        </select>
+      </label>
     </div>
 
     <div class="gruppe">
@@ -95,7 +110,7 @@
 
       {#if art === 'abgleich'}
         <div class="zeile">
-          <span class="l">Saldo laut Firma</span>
+          <span class="l">Saldo laut TiMaS</span>
           <span class="w">
             <button type="button" class="vz" onclick={() => (firmaVorzeichen = firmaVorzeichen === 1 ? -1 : 1)} aria-label="Vorzeichen wechseln">{firmaVorzeichen === 1 ? '+' : '−'}</button>
             <StundenEingabe id="b-firma" bind:wert={firma} />
@@ -139,9 +154,6 @@
 </Blatt>
 
 <style>
-  .segmente.klein {
-    font-size: 13px;
-  }
   .feld {
     font: inherit;
     font-weight: 600;
