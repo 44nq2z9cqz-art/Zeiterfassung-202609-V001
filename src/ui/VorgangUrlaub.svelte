@@ -38,14 +38,14 @@
   }
   async function urlaubsschein(x: Urlaubsantrag) {
     const { pdfUrlaubsantrag } = await import('../lib/pdf');
-    return teileDatei(pdfUrlaubsantrag(speicher.daten, jahrVon(x.von), heute, x.id), `urlaubsantrag-${jahrVon(x.von)}-${heute}.pdf`);
+    // Das PDF trägt das Antragsdatum; vor dem Beantragen das heutige Datum
+    const datum = x.beantragtAm ?? heute;
+    return teileDatei(pdfUrlaubsantrag(speicher.daten, jahrVon(x.von), datum, x.id), `urlaubsantrag-${jahrVon(x.von)}-${datum}.pdf`);
   }
 
   async function beantragen() {
     if (!a) return;
-    const neu: Urlaubsantrag = { ...a, plan: undefined, beantragtAm: heute };
-    await speichern(neu);
-    await urlaubsschein(neu);
+    await speichern({ ...a, plan: undefined, beantragtAm: heute });
   }
   async function genehmigen() {
     if (!a) return;
@@ -93,9 +93,9 @@
       {/if}
 
       {#if status === 'geplant'}
-        <h2 class="abschnitt">Nächster Schritt · Antrag stellen</h2>
-        <p class="hinweistext">Erstellt den Urlaubsschein als PDF mit dem heutigen Datum. Bis dahin zählt der Plan im Rest mit und steht gestrichelt im Kalender.</p>
-        <button type="button" class="knopf haupt" onclick={beantragen}>Antrag stellen (PDF)</button>
+        <h2 class="abschnitt">Nächster Schritt · Beantragen</h2>
+        <p class="hinweistext">Setzt den Status „beantragt“ mit dem heutigen Datum. Den Urlaubsschein als PDF kannst du jederzeit zusätzlich erstellen.</p>
+        <button type="button" class="knopf haupt" onclick={beantragen}>Beantragen</button>
       {:else if status === 'beantragt'}
         <h2 class="abschnitt">Nächster Schritt · Genehmigung erfassen</h2>
         <div class="gruppe">
@@ -117,16 +117,13 @@
         <button type="button" class="knopf neben" onclick={aufheben}>Streichung aufheben</button>
       {/if}
 
+      <button type="button" class="knopf neben" onclick={() => urlaubsschein(a!)}>Urlaubsschein (PDF)</button>
       <div class="unten">
-        {#if status === 'geplant' || status === 'beantragt'}
-          <button type="button" class="textknopf" onclick={() => bearbeiten(a!)}>Bearbeiten</button>
-          {#if loeschenFragen}
-            <button type="button" class="textknopf rot" onclick={loeschen}>Wirklich löschen</button>
-          {:else}
-            <button type="button" class="textknopf" onclick={() => (loeschenFragen = true)}>{status === 'geplant' ? 'Plan löschen' : 'Antrag löschen'}</button>
-          {/if}
-        {:else if status !== 'gestrichen'}
-          <button type="button" class="textknopf" onclick={() => urlaubsschein(a!)}>Urlaubsschein erneut</button>
+        <button type="button" class="textknopf" onclick={() => bearbeiten(a!)}>Bearbeiten</button>
+        {#if loeschenFragen}
+          <button type="button" class="textknopf rot" onclick={loeschen}>Wirklich löschen</button>
+        {:else}
+          <button type="button" class="textknopf" onclick={() => (loeschenFragen = true)}>Löschen</button>
         {/if}
       </div>
     {/if}

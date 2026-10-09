@@ -18,6 +18,7 @@
   let genehmigtAm = $state<Datum>(a0?.genehmigtAm ?? '');
   let fehler = $state<string | null>(null);
   let ansicht = $state<'antrag' | 'streichen'>('antrag');
+  let loeschenFragen = $state(false);
   let grund = $state(a0?.gestrichen?.grund ?? '');
   let gestrichenAm = $state<Datum>(start);
 
@@ -137,17 +138,25 @@
         {genehmigt
           ? 'Die Tage stehen als Urlaub im Kalender.'
           : istPlan
-            ? 'Nur geplant: Die Tage verringern den Rest, sind aber noch nicht beantragt und stehen nicht im PDF. „Beantragen und PDF“ macht daraus einen Antrag.'
-            : 'Noch nicht genehmigt: Die Tage verringern den Rest, stehen aber noch nicht im Kalender.'}
+            ? 'Nur geplant: Die Tage verringern den Rest und stehen gestrichelt im Kalender. „Beantragen“ macht daraus einen Antrag.'
+            : 'Beantragt, noch nicht genehmigt: Die Tage verringern den Rest und stehen schraffiert im Kalender.'}
       </p>
     {/if}
     {#if fehler}<p class="fehler" role="alert">{fehler}</p>{/if}
     <button type="button" class="knopf haupt" onclick={() => sichern(false)}>Sichern</button>
-    <button type="button" class="knopf neben" onclick={() => sichern(istPlan, true)}>{istPlan ? 'Beantragen und PDF' : 'Sichern und PDF'}</button>
-    <!-- Bis zur Genehmigung lässt sich ein Eintrag spurlos löschen, danach nur noch streichen -->
-    {#if a0 && !a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={loeschen}>{a0.plan ? 'Plan löschen' : 'Antrag löschen'}</button>{/if}
-    {#if a0 && a0.genehmigt && !gestrichen}<button type="button" class="knopf neben rot" onclick={() => (ansicht = 'streichen')}>Antrag streichen</button>{/if}
+    {#if istPlan}<button type="button" class="knopf neben" onclick={() => sichern(true, false)}>Beantragen</button>{/if}
+    <!-- PDF ist optional und ändert keinen Status -->
+    {#if a0}<button type="button" class="knopf neben" onclick={() => pdf(a0)}>Urlaubsschein (PDF)</button>{/if}
+    {#if a0 && a0.genehmigt && !gestrichen}<button type="button" class="knopf neben" onclick={() => (ansicht = 'streichen')}>Streichen</button>{/if}
     {#if a0 && gestrichen}<button type="button" class="knopf neben" onclick={wiederaufnehmen}>Streichung aufheben</button>{/if}
+    <!-- Löschen geht immer: entfernt den Eintrag spurlos, auch die Tage im Kalender -->
+    {#if a0}
+      {#if loeschenFragen}
+        <button type="button" class="knopf haupt rot-voll" onclick={loeschen}>Endgültig löschen</button>
+      {:else}
+        <button type="button" class="knopf neben rot" onclick={() => (loeschenFragen = true)}>Löschen</button>
+      {/if}
+    {/if}
   {/if}
 </Blatt>
 

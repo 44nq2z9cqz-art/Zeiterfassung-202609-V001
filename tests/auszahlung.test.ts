@@ -51,3 +51,14 @@ describe('Antrag auf Auszahlung von Überstunden', () => {
     expect(a.auszahlungen.map((r) => r.monat)).toEqual(['2026-10', '2026-11']);
   });
 });
+
+describe('Auszahlung: Status ohne PDF', () => {
+  it('Entwurf → beantragt → genehmigt, unabhängig vom PDF', async () => {
+    const { auszahlungsstatus } = await import('../src/core/auszahlung');
+    const e = neuerAntrag({ stichtag: '2026-09-30', saldo: 0, sockel: 0, ueber: 600, stunden: 300 }, '2026-10-09', true);
+    expect(auszahlungsstatus(e)).toBe('entwurf');
+    const b = { ...e, entwurf: undefined, antragsdatum: '2026-10-10' };
+    expect(auszahlungsstatus(b)).toBe('beantragt');
+    expect(auszahlungsstatus({ ...b, genehmigtAm: '2026-10-12' })).toBe('genehmigt');
+  });
+});

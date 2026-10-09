@@ -159,6 +159,8 @@ export interface Auszahlungsantrag {
   /** gewünschter Abrechnungsmonat laut Antrag, z. B. „2026-10“ */
   abrechnung?: string;
   bemerkung?: string;
+  /** Noch nicht beantragt (nur gesichert); antragsdatum ist dann das Datum der Anlage */
+  entwurf?: boolean;
   /** Genehmigung durch die Geschäftsleitung (ab v1.0) */
   genehmigtAm?: Datum;
   auszahlungen: Auszahlungsrate[];

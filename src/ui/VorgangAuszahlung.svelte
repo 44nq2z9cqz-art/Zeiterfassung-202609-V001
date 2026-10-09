@@ -9,7 +9,7 @@
   import Blatt from './Blatt.svelte';
   import StundenEingabe from './StundenEingabe.svelte';
 
-  let { id, heute, schliessen }: { id: string; heute: Datum; schliessen: () => void } = $props();
+  let { id, heute, schliessen, bearbeiten }: { id: string; heute: Datum; schliessen: () => void; bearbeiten: () => void } = $props();
 
   const a = $derived(speicher.auszahlungen.find((x) => x.id === id));
   const status = $derived(a ? auszahlungsstatus(a) : 'beantragt');
@@ -38,6 +38,12 @@
     if (a && !rateMonat) untrack(vorschlagen);
   });
 
+  async function beantragen() {
+    if (!a) return;
+    await speicher.speichereAuszahlungsantrag({ ...a, entwurf: undefined, antragsdatum: heute });
+    meldung = 'Beantragt.';
+  }
+
   async function genehmigen() {
     if (!a) return;
     await speicher.speichereAuszahlungsantrag({ ...a, genehmigtAm: genehmigtAm || heute });
@@ -60,7 +66,9 @@
   async function pdf() {
     if (!a) return;
     const { pdfAuszahlungsantrag } = await import('../lib/pdf');
-    await teileDatei(pdfAuszahlungsantrag(speicher.daten, a, a.antragsdatum), `antrag-auszahlung-ueberstunden-${a.antragsdatum}.pdf`);
+    // Antragsdatum, sobald beantragt – im Entwurf das heutige Datum
+    const datum = a.entwurf ? heute : a.antragsdatum;
+    await teileDatei(pdfAuszahlungsantrag(speicher.daten, a, datum), `antrag-auszahlung-ueberstunden-${datum}.pdf`);
   }
 
   async function loeschen() {
@@ -75,7 +83,7 @@
     {#if a}
       <div class="kopf">
         <small>Stichtag {datumDE(a.stichtag)} · über dem Sockel {dauer(a.ueber)}</small>
-        <b>{dauer(a.stunden)} Std. beantragt</b>
+        <b>{dauer(a.stunden)} Std. {status === 'entwurf' ? 'im Entwurf' : 'beantragt'}</b>
       </div>
 
       <div class="zahlen">
@@ -85,8 +93,9 @@
       </div>
 
       <ol class="ablauf">
-        <li class="fertig"><i>✓</i><span>Beantragt</span><button type="button" class="link" onclick={pdf}>{datumDE(a.antragsdatum)} · PDF ↗</button></li>
-        <li class={status === 'beantragt' ? 'jetzt' : 'fertig'}><i>{status === 'beantragt' ? '' : '✓'}</i><span>Genehmigt</span><span class="info">{a.genehmigtAm ? `${datumDE(a.genehmigtAm)} · ${genehmiger}` : a.auszahlungen.length ? 'ohne Datum' : ''}</span></li>
+        <li class="fertig"><i>✓</i><span>Entwurf</span><span class="info">{a.entwurf ? datumDE(a.antragsdatum) : ''}</span></li>
+        <li class={status === 'entwurf' ? 'jetzt' : 'fertig'}><i>{status === 'entwurf' ? '' : '✓'}</i><span>Beantragt</span><span class="info">{a.entwurf ? '' : datumDE(a.antragsdatum)}</span></li>
+        <li class={status === 'beantragt' ? 'jetzt' : status === 'entwurf' ? '' : 'fertig'}><i>{status === 'beantragt' || status === 'entwurf' ? '' : '✓'}</i><span>Genehmigt</span><span class="info">{a.genehmigtAm ? `${datumDE(a.genehmigtAm)} · ${genehmiger}` : a.auszahlungen.length ? 'ohne Datum' : ''}</span></li>
         <li class={status === 'teilweise' ? 'jetzt' : status === 'ausgezahlt' ? 'fertig' : ''}><i>{status === 'ausgezahlt' ? '✓' : ''}</i><span>Teilweise ausgezahlt</span><span class="info">{a.auszahlungen.length} {a.auszahlungen.length === 1 ? 'Zahlung' : 'Zahlungen'}</span></li>
         <li class={status === 'ausgezahlt' ? 'fertig' : ''}><i>{status === 'ausgezahlt' ? '✓' : ''}</i><span>Vollständig ausgezahlt</span><span class="info">automatisch</span></li>
       </ol>
@@ -102,7 +111,12 @@
         </div>
       {/if}
 
-      {#if status === 'beantragt'}
+      {#if status === 'entwurf'}
+        <h2 class="abschnitt">Nächster Schritt · Beantragen</h2>
+        <p class="hinweistext">Setzt den Status „beantragt“ mit dem heutigen Datum. Das PDF kannst du jederzeit zusätzlich erstellen.</p>
+        {#if meldung}<p class="hinweistext mitte" role="status">{meldung}</p>{/if}
+        <button type="button" class="knopf haupt" onclick={beantragen}>Beantragen</button>
+      {:else if status === 'beantragt'}
         <h2 class="abschnitt">Nächster Schritt · Genehmigung erfassen</h2>
         <div class="gruppe">
           <div class="zeile"><span class="l">Genehmigt von</span><span class="w stark">{genehmiger}</span></div>
@@ -125,6 +139,8 @@
         <p class="hinweistext mitte">Vollständig ausgezahlt.</p>
       {/if}
 
+      <button type="button" class="knopf neben" onclick={pdf}>Antrag als PDF</button>
+      <button type="button" class="textknopf" onclick={bearbeiten}>Bearbeiten</button>
       {#if loeschenFragen}
         <p class="hinweistext mitte">Der Antrag wird gelöscht{a.auszahlungen.length ? ', ebenso die Buchungen seiner Zahlungen' : ''}.</p>
         <button type="button" class="knopf neben rot" onclick={loeschen}>Endgültig löschen</button>
@@ -220,8 +236,7 @@
     border-color: var(--orange);
     box-shadow: 0 0 0 5px var(--orange-glow);
   }
-  .info,
-  .link {
+  .info {
     font-size: 13px;
     color: var(--label2);
     font-weight: 400;

@@ -1,19 +1,20 @@
 // Antrag auf Auszahlung von Überstunden: Zeitkonto über dem Sockel zu einem Stichtag.
-// Beim Erstellen des PDFs wird der Antrag als „beantragt“ gespeichert; Auszahlungen – auch in
+// „Sichern“ legt einen Entwurf an, „Beantragen“ setzt den Status; das PDF ist optional. Auszahlungen – auch in
 // Teilbeträgen über mehrere Monate – werden später dagegen gebucht, jeweils zum Monatsletzten.
 import { zeitkontoSaldo } from './konten';
 import type { Auszahlungsantrag, Auszahlungsrate, Buchung, Datenbestand } from './modell';
 import { type Datum, type Minuten, MONATE, datumDE, dauer, plusTage, zerlege } from './zeit';
 
 /** Die Angaben des Formulars – daraus entsteht das PDF und der gespeicherte Antrag. */
-export type Antragsangaben = Omit<Auszahlungsantrag, 'id' | 'antragsdatum' | 'auszahlungen' | 'genehmigtAm'>;
+export type Antragsangaben = Omit<Auszahlungsantrag, 'id' | 'antragsdatum' | 'auszahlungen' | 'genehmigtAm' | 'entwurf'>;
 
-export type Auszahlungsstatus = 'beantragt' | 'genehmigt' | 'teilweise' | 'ausgezahlt';
+export type Auszahlungsstatus = 'entwurf' | 'beantragt' | 'genehmigt' | 'teilweise' | 'ausgezahlt';
 
 /** Status eines Auszahlungsantrags; Auszahlungen ohne erfasste Genehmigung (ältere Daten) gelten als genehmigt. */
 export function auszahlungsstatus(a: Auszahlungsantrag): Auszahlungsstatus {
   if (a.auszahlungen.length) return offen(a) === 0 ? 'ausgezahlt' : 'teilweise';
-  return a.genehmigtAm ? 'genehmigt' : 'beantragt';
+  if (a.genehmigtAm) return 'genehmigt';
+  return a.entwurf ? 'entwurf' : 'beantragt';
 }
 
 /** Zeitkonto, Sockel und der Teil darüber am Ende des Stichtags. */
@@ -57,9 +58,9 @@ export function pruefeAuszahlung(a: Pick<Antragsangaben, 'stunden' | 'ueber'>): 
   return null;
 }
 
-/** Aus den Formularangaben wird beim Erstellen des PDFs ein gespeicherter Antrag. */
-export function neuerAntrag(angaben: Antragsangaben, antragsdatum: Datum): Auszahlungsantrag {
-  return { ...angaben, id: crypto.randomUUID(), antragsdatum, auszahlungen: [] };
+/** Aus den Formularangaben wird ein gespeicherter Vorgang – als Entwurf (Sichern) oder beantragt (Beantragen). */
+export function neuerAntrag(angaben: Antragsangaben, antragsdatum: Datum, entwurf = false): Auszahlungsantrag {
+  return { ...angaben, id: crypto.randomUUID(), antragsdatum, auszahlungen: [], ...(entwurf ? { entwurf: true } : {}) };
 }
 
 export const ausgezahlt = (a: Auszahlungsantrag): Minuten => a.auszahlungen.reduce((s, r) => s + r.stunden, 0);

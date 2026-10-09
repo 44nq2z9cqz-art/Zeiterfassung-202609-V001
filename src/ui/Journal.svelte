@@ -11,7 +11,7 @@
   import { speicher } from '../lib/speicher.svelte';
   import { teileDatei } from '../lib/teilen';
   import AntragBlatt from './AntragBlatt.svelte';
-  import AuszahlungNeu from './AuszahlungNeu.svelte';
+  import AuszahlungForm from './AuszahlungForm.svelte';
   import BuchungBlatt from './BuchungBlatt.svelte';
   import VorgangAuszahlung from './VorgangAuszahlung.svelte';
   import VorgangUrlaub from './VorgangUrlaub.svelte';
@@ -26,6 +26,7 @@
   // Blätter
   let buchung = $state<{ art: Buchungsart; vorhanden?: Buchung } | null>(null);
   let neuAuszahlung = $state(false);
+  let auszahlungBearbeiten = $state<string | null>(null);
   let neuPlan = $state(false);
   let planBearbeiten = $state<Urlaubsantrag | null>(null);
   let vorgangAuszahlung = $state<string | null>(null);
@@ -53,8 +54,8 @@
     b.art === 'abgleich' && b.abgleich ? `TiMaS ${dauer(b.abgleich.firma, true)}, App ${dauer(b.abgleich.app, true)}${b.kommentar ? ` · ${b.kommentar}` : ''}` : (b.kommentar ?? '');
 
   const PLAN_SCHRITTE = ['geplant', 'beantragt', 'genehmigt', 'genommen'] as const;
-  const AUSZ_SCHRITTE = ['beantragt', 'genehmigt', 'teilweise', 'ausgezahlt'] as const;
-  const AUSZ_NAME: Record<string, string> = { beantragt: 'Beantragt', genehmigt: 'Genehmigt', teilweise: 'Teilzahlung', ausgezahlt: 'Ausgezahlt' };
+  const AUSZ_SCHRITTE = ['entwurf', 'beantragt', 'genehmigt', 'teilweise', 'ausgezahlt'] as const;
+  const AUSZ_NAME: Record<string, string> = { entwurf: 'Entwurf', beantragt: 'Beantragt', genehmigt: 'Genehmigt', teilweise: 'Teilzahlung', ausgezahlt: 'Ausgezahlt' };
   const PLAN_NAME: Record<string, string> = { geplant: 'Geplant', beantragt: 'Beantragt', genehmigt: 'Genehmigt', genommen: 'Genommen', gestrichen: 'Gestrichen' };
   /** Statusleiste: erledigt dunkel, aktuell orange, offen grau */
   const schritte = (liste: readonly string[], status: string) => {
@@ -74,7 +75,8 @@
 
   async function urlaubsscheinFuer(a: Urlaubsantrag) {
     const { pdfUrlaubsantrag } = await import('../lib/pdf');
-    await teileDatei(pdfUrlaubsantrag(speicher.daten, jahrVon(a.von), heute, a.id), `urlaubsantrag-${jahrVon(a.von)}-${heute}.pdf`);
+    const datum = a.beantragtAm ?? heute;
+    await teileDatei(pdfUrlaubsantrag(speicher.daten, jahrVon(a.von), datum, a.id), `urlaubsantrag-${jahrVon(a.von)}-${datum}.pdf`);
   }
 
   /** „+“: bei Buchungstypen das Buchungsblatt, bei Vorgängen das passende Formular */
@@ -127,10 +129,10 @@
         {#if e.art === 'auszahlung'}
           <section class="karte">
             <div class="kopf">
-              <span><small class="typ">AUSZAHLUNG ÜBERSTUNDEN</small><b>{dauer(e.antrag.stunden)} Std. beantragt am {kurz(e.antrag.antragsdatum)}</b></span>
+              <span><small class="typ">AUSZAHLUNG ÜBERSTUNDEN</small><b>{dauer(e.antrag.stunden)} Std. {e.status === 'entwurf' ? 'Entwurf vom' : 'beantragt am'} {kurz(e.antrag.antragsdatum)}</b></span>
               <span class="status {e.status}">{AUSZ_NAME[e.status].toUpperCase()}</span>
             </div>
-            <div class="schritte">
+            <div class="schritte" style="grid-template-columns: repeat(5, minmax(0, 1fr))">
               {#each schritte(AUSZ_SCHRITTE, e.status) as s (s.s)}<span class={s.klasse}><i></i>{AUSZ_NAME[s.s]}</span>{/each}
             </div>
             {#each e.raten as r (r.monat + r.stunden)}
@@ -205,7 +207,10 @@
     <BuchungBlatt konto={konto} art={buchung.art} vorhanden={buchung.vorhanden} {heute} schliessen={() => (buchung = null)} vorgang={vorgangWaehlen} />
   {/if}
   {#if neuAuszahlung}
-    <AuszahlungNeu {heute} schliessen={() => (neuAuszahlung = false)} fertig={(id) => ((neuAuszahlung = false), (vorgangAuszahlung = id))} />
+    <AuszahlungForm {heute} schliessen={() => (neuAuszahlung = false)} fertig={(id) => ((neuAuszahlung = false), (vorgangAuszahlung = id))} />
+  {/if}
+  {#if auszahlungBearbeiten}
+    <AuszahlungForm {heute} vorhanden={speicher.auszahlungen.find((x) => x.id === auszahlungBearbeiten)} schliessen={() => (auszahlungBearbeiten = null)} fertig={(id) => ((auszahlungBearbeiten = null), (vorgangAuszahlung = id))} />
   {/if}
   {#if neuPlan}
     <AntragBlatt {heute} schliessen={() => (neuPlan = false)} pdf={urlaubsscheinFuer} />
@@ -214,7 +219,7 @@
     <AntragBlatt vorhanden={planBearbeiten} {heute} schliessen={() => (planBearbeiten = null)} pdf={urlaubsscheinFuer} />
   {/if}
   {#if vorgangAuszahlung}
-    <VorgangAuszahlung id={vorgangAuszahlung} {heute} schliessen={() => (vorgangAuszahlung = null)} />
+    <VorgangAuszahlung id={vorgangAuszahlung} {heute} schliessen={() => (vorgangAuszahlung = null)} bearbeiten={() => ((auszahlungBearbeiten = vorgangAuszahlung), (vorgangAuszahlung = null))} />
   {/if}
   {#if vorgangPlan}
     <VorgangUrlaub id={vorgangPlan} {heute} schliessen={() => (vorgangPlan = null)} bearbeiten={(a) => ((vorgangPlan = null), (planBearbeiten = a))} />
@@ -385,7 +390,8 @@
     border-radius: 5px;
     white-space: nowrap;
   }
-  .status.geplant {
+  .status.geplant,
+  .status.entwurf {
     border: 1px dashed var(--label3);
     color: var(--label2);
     padding: 2px 6px;
