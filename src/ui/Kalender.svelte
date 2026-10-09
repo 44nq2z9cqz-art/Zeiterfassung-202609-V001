@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { ART_NAMEN } from '../core/buchungen';
   import { tagesreihe } from '../core/konten';
   import { urlaubstagWert } from '../core/regeln';
   import { MONATE, WOCHENTAGE_KURZ, type Datum, datumAus, datumDE, dauer, plusTage, tageVonBis, uhrzeit, wochentag, zerlege } from '../core/zeit';
@@ -36,6 +37,10 @@
     }
     return { ist, soll, zuschlag, zuschlagTage, urlaub, saldo: reihe.saldoNachher - reihe.saldoVorher };
   });
+  // Buchungen im Zeitkonto (z. B. Auszahlung zum Monatsletzten) gehen in den Monatssaldo ein
+  const monatsBuchungen = $derived(
+    speicher.daten.buchungen.filter((b) => b.konto === 'zeit' && b.betrag !== 0 && b.datum >= erster && b.datum <= letzter).sort((a, b) => a.datum.localeCompare(b.datum))
+  );
 
   function blaettern(richtung: number) {
     let m = monat + richtung;
@@ -179,6 +184,7 @@
   <div class="zeile"><span class="l">Ist</span><span class="w">{dauer(summe.ist)}</span></div>
   <div class="zeile"><span class="l">Soll</span><span class="w">{dauer(summe.soll)}</span></div>
   {#if summe.zuschlag}<div class="zeile"><span class="l"><span class="plakette">!</span>Zuschläge ({summe.zuschlagTage} {summe.zuschlagTage === 1 ? 'Tag' : 'Tage'})</span><span class="w">{dauer(-summe.zuschlag, true)}</span></div>{/if}
+  {#each monatsBuchungen as b (b.id)}<div class="zeile"><span class="l"><span>{ART_NAMEN[b.art]}<small>Buchung zum {datumDE(b.datum)}</small></span></span><span class="w">{dauer(b.betrag, true)}</span></div>{/each}
   <div class="zeile"><span class="l"><b>Saldo Monat</b></span><span class="w stark" class:plus={summe.saldo > 0} class:minus={summe.saldo < 0}>{dauer(summe.saldo, true)}</span></div>
   {#if summe.urlaub}<div class="zeile"><span class="l">Urlaubstage</span><span class="w">{String(summe.urlaub).replace('.', ',')}</span></div>{/if}
 </section>
